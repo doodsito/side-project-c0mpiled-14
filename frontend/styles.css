@@ -608,6 +608,43 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   overflow-wrap: anywhere;
 }
 
+/* Whether the MCP server is actually answering at MCP_BASE_URL. */
+.server-status {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-top: 12px;
+  font-size: 0.9375rem;
+  color: var(--ink-muted);
+}
+
+.server-status::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 0.4em;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.server-status[data-state="checking"]::before { animation: status-pulse 1.2s ease-in-out infinite; }
+.server-status[data-state="ok"]::before { background: var(--accent); }
+.server-status[data-state="warn"]::before { background: #b8861a; }
+.server-status[data-state="error"]::before { background: var(--danger); }
+
+.server-status[data-state="error"],
+.server-status[data-state="warn"] { color: var(--ink); }
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .server-status[data-state="checking"]::before { animation: none; }
+}
+
 .connect-section {
   display: grid;
   gap: 12px;

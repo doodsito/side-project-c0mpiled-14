@@ -193,9 +193,13 @@
         <button class="button button-secondary" type="button" data-copy="personal-link">Copy link</button>
       </div>
 
+      <p class="server-status" id="server-status" data-state="checking" role="status">
+        Checking that EEVEE is reachable&hellip;
+      </p>
+
       <section class="connect-section">
         <h2>Claude app</h2>
-        <p>Add this link as a connector in Claude's settings.</p>
+        <p>Settings &rarr; Connectors &rarr; Add custom connector, then paste the link.</p>
       </section>
 
       <section class="connect-section">
@@ -226,6 +230,7 @@
     </div>
   </main>
 
+  <script src="config.js"></script>
   <script src="api.js"></script>
   <script src="app.js"></script>
 </body>

@@ -3,17 +3,8 @@
 // phone sign-in with Supabase Phone OTP (Twilio is the SMS provider, set in the Supabase dashboard),
 // then the signed-in user updates their own profile and their 4 envelopes, and gets a connector key.
 
-// The publishable key is meant to live in the browser: Row Level Security limits each user to their own rows.
-const SUPABASE_URL = "https://ucsysxhiydfgukkkbtdx.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_kH8DQml2zIAyghryfM1uOA_CJVJFF7J";
-
-// The MCP server's public HTTPS address, no trailing slash. Verified working end to end
-// against this Supabase project.
-//
-// NOTE: this is a quick tunnel, so it changes whenever the tunnel restarts. If connector
-// links stop working, that is the first thing to check — ask for the current URL.
-// It is replaced by a stable domain before the demo.
-const MCP_BASE_URL = "https://knowing-converter-ion-groove.trycloudflare.com";
+// MCP_BASE_URL, SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY come from config.js,
+// which index.html loads first. Edit addresses there, not here.
 
 const SESSION_KEY = "eevee-session";
 

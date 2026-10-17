@@ -509,6 +509,36 @@ function renderConnectStep() {
   $("#personal-link").textContent = link;
   $("#cli-command").textContent = `claude mcp add --transport http eevee ${link}`;
   $("#demo-json").textContent = JSON.stringify(state.savedData, null, 2);
+  checkServerReachable();
+}
+
+// A connector link is only as good as the address inside it, and MCP_BASE_URL is a tunnel
+// that moves. Say so here rather than letting Claude fail with "connector not found".
+async function checkServerReachable() {
+  const element = $("#server-status");
+  if (!element) return;
+
+  const show = (state, message) => {
+    element.dataset.state = state;
+    element.textContent = message;
+  };
+  show("checking", "Checking that EEVEE is reachable…");
+
+  try {
+    const response = await fetch(`${MCP_BASE_URL}/health`, { cache: "no-store" });
+    const body = await response.json();
+    if (response.ok && body.ok) {
+      show("ok", "EEVEE is running and ready for Claude.");
+    } else {
+      show("warn", `EEVEE answered but is not ready: ${body.database || response.status}.`);
+    }
+  } catch (error) {
+    show(
+      "error",
+      "EEVEE is not reachable at that address, so this link will not work yet. " +
+        "Its address changes when it restarts — ask for the current one.",
+    );
+  }
 }
 
 async function copyText(text) {

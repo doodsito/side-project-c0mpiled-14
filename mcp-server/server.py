@@ -247,6 +247,44 @@ async def get_status(request_id: str | None = None) -> dict:
     return out
 
 
+@mcp.custom_route("/health", methods=["GET", "OPTIONS"])
+async def health(request):
+    """Liveness check for the website's Connect screen.
+
+    CORS-open and unauthenticated on purpose: it reveals nothing about any user, and the
+    browser needs it cross-origin to tell "the server moved" apart from "the link is wrong".
+    """
+    from starlette.responses import JSONResponse
+
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+        "Cache-Control": "no-store",
+    }
+    if request.method == "OPTIONS":
+        from starlette.responses import Response
+
+        return Response(status_code=204, headers=headers)
+
+    ok = True
+    detail = "ready"
+    try:
+        await db.check_budget("health-check-not-a-real-key")
+    except db.DbError as exc:
+        # An invalid key proves the database answered. Anything else means it did not.
+        if exc.code != "invalid_connector_key":
+            ok, detail = False, exc.message
+    except Exception as exc:  # noqa: BLE001
+        ok, detail = False, f"database unreachable: {type(exc).__name__}"
+
+    return JSONResponse(
+        {"ok": ok, "service": "wallie-mcp", "database": detail},
+        status_code=200 if ok else 503,
+        headers=headers,
+    )
+
+
 class KeyFromPath:
     """ASGI middleware: rewrites /mcp/<key>[/] -> /mcp, moves <key> into a header."""
 
