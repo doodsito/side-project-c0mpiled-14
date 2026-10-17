@@ -206,7 +206,7 @@ Times are targets. If a step runs 10+ min over, tell the user and cut scope: dro
   3. Write `server.py` with a temporary `whoami` tool that returns the key from the path.
   4. Run `uv run uvicorn server:app --port 8000`.
   5. Prove the key arrives via `scripts/smoke.py`, using fastmcp `Client("http://localhost:8000/mcp/demo")`. This de-risks routing before any DB work.
-- [ ] **2. Rules (14:20–14:30).** `rules.py` + `tests/test_rules.py`; `uv run pytest` green.
+- [x] **2. Rules (14:20–14:30).** `rules.py` + `tests/test_rules.py`; `uv run pytest` green.
 - [ ] **3. DB (14:30–14:50).**
   1. `db.py` with the pool, `get_user_by_key`, `envelope_status`, `latest_request`, `expire_stale`, and the transactional `create_request` (D8).
   2. `sql/seed_demo.sql`.
@@ -268,3 +268,5 @@ When you reach the trigger, stop and give the user the "ask" text to pass on. If
   - One-purchase-in-flight lock (agent key = pending `request_id`).
   - Wrote `docs/TEAM-CONTRACT.md` and this handoff plan.
 - 14:07 Step 1 done (Linux, not Windows — adapted paths, no winget/uv.exe). `uv init --app`, flattened to a plain `mcp-server/` layout (no `src/`). Confirmed fastmcp 4.1.0's `http_app(stateless_http=...)` and `get_http_request` match the plan's sketch exactly, no changes needed. `server.py` with `whoami` + `KeyFromPath` running under `uv run uvicorn server:app --port 8000`; `scripts/smoke.py` confirms `/mcp/demo` → `whoami` returns `{"connector_key": "demo"}`. Asked the user to confirm `TEAM-CONTRACT.md` went to Persons 1/2/3 (step 0, still open).
+- 14:13 GitHub push auth set up (`gh auth login --web`, user tjor06). Pushed step 1.
+- 14:16 Step 2 done: `rules.py` (pure `decide()`, `Decimal` cents rounding) + `tests/test_rules.py` (7 cases: auto-approve, needs-approval, over-budget with `over_by`, spent+reserved interaction, exact-remaining boundary, strict-`<` auto-approve boundary). Added `pytest.ini` (`pythonpath = .`) so flat-layout tests import root modules. `uv run pytest` green.
