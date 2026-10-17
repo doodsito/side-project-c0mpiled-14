@@ -41,145 +41,147 @@ export type Database = {
     Tables: {
       envelopes: {
         Row: {
-          auto_approve_under_cents: number
+          auto_approve_under: number
           category: string
           created_at: string
-          id: number
-          updated_at: string
+          id: string
           user_id: string
-          weekly_limit_cents: number
+          weekly_limit: number
         }
         Insert: {
-          auto_approve_under_cents?: number
+          auto_approve_under: number
           category: string
           created_at?: string
-          id?: never
-          updated_at?: string
+          id?: string
           user_id: string
-          weekly_limit_cents?: number
+          weekly_limit: number
         }
         Update: {
-          auto_approve_under_cents?: number
+          auto_approve_under?: number
           category?: string
           created_at?: string
-          id?: never
-          updated_at?: string
-          user_id?: string
-          weekly_limit_cents?: number
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          connector_key_hash: string | null
-          created_at: string
-          id: string
-          phone: string | null
-          updated_at: string
-          weekly_allowance_cents: number
-        }
-        Insert: {
-          connector_key_hash?: string | null
-          created_at?: string
-          id: string
-          phone?: string | null
-          updated_at?: string
-          weekly_allowance_cents?: number
-        }
-        Update: {
-          connector_key_hash?: string | null
-          created_at?: string
           id?: string
-          phone?: string | null
-          updated_at?: string
-          weekly_allowance_cents?: number
+          user_id?: string
+          weekly_limit?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "envelopes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      spend_requests: {
+      requests: {
         Row: {
-          amount_cents: number
+          amount: number
           created_at: string
           decided_at: string | null
-          decided_by: string | null
           description: string | null
-          envelope_id: number
-          expires_at: string
+          envelope_id: string
           id: string
-          merchant: string
-          over_by_cents: number
-          reason: string
+          merchant: string | null
           status: string
-          updated_at: string
+          url: string | null
           user_id: string
         }
         Insert: {
-          amount_cents: number
+          amount: number
           created_at?: string
           decided_at?: string | null
-          decided_by?: string | null
           description?: string | null
-          envelope_id: number
-          expires_at?: string
+          envelope_id: string
           id?: string
-          merchant: string
-          over_by_cents?: number
-          reason: string
+          merchant?: string | null
           status?: string
-          updated_at?: string
+          url?: string | null
           user_id: string
         }
         Update: {
-          amount_cents?: number
+          amount?: number
           created_at?: string
           decided_at?: string | null
-          decided_by?: string | null
           description?: string | null
-          envelope_id?: number
-          expires_at?: string
+          envelope_id?: string
           id?: string
-          merchant?: string
-          over_by_cents?: number
-          reason?: string
+          merchant?: string | null
           status?: string
-          updated_at?: string
+          url?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "spend_requests_envelope_id_fkey"
+            foreignKeyName: "requests_envelope_id_fkey"
             columns: ["envelope_id"]
             isOneToOne: false
             referencedRelation: "envelopes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      setups: {
+        Row: {
+          created_at: string
+          envelopes: Json
+          id: string
+          phone: string
+          weekly_budget: number
+        }
+        Insert: {
+          created_at?: string
+          envelopes: Json
+          id?: string
+          phone: string
+          weekly_budget: number
+        }
+        Update: {
+          created_at?: string
+          envelopes?: Json
+          id?: string
+          phone?: string
+          weekly_budget?: number
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          connector_key: string
+          created_at: string
+          id: string
+          phone: string
+          weekly_budget: number
+        }
+        Insert: {
+          connector_key: string
+          created_at?: string
+          id?: string
+          phone: string
+          weekly_budget: number
+        }
+        Update: {
+          connector_key?: string
+          created_at?: string
+          id?: string
+          phone?: string
+          weekly_budget?: number
+        }
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      check_budget: { Args: { p_key: string }; Returns: Json }
-      get_status: {
-        Args: { p_key: string; p_request_id: string }
-        Returns: Json
-      }
-      request_spend: {
-        Args: {
-          p_amount_cents: number
-          p_category: string
-          p_description?: string
-          p_key: string
-          p_merchant: string
-        }
-        Returns: Json
-      }
-      resolve_reply: {
-        Args: { p_phone: string; p_reply: string }
-        Returns: Json
-      }
-      rotate_connector_key: { Args: never; Returns: string }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
