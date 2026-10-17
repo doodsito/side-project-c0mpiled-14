@@ -2,6 +2,19 @@
 
 What each team needs to build against so the pieces connect at integration. Times are PDT, 2026-10-17.
 
+## Money units (everyone) — read this one
+
+One rule, no exceptions: **if a field name ends in `_cents` it is an integer number of cents; if it does not, it is dollars.**
+
+| Where | Field | Unit | Example |
+| --- | --- | --- | --- |
+| Database and RPCs | `amount_cents`, `remaining_cents`, `weekly_limit_cents`, `auto_approve_under_cents`, `weekly_allowance_cents` | integer cents | `7500` |
+| MCP tool results (what Claude sees) | `amount`, `remaining`, `weekly_limit`, `auto_approve_under`, `over_by` | dollars | `75.0` |
+| `POST {NOTIFY_URL}` payload | `amount`, `remaining`, `over_by` | **dollars** | `29.0` |
+| What the website writes | the `*_cents` columns | integer cents | `7500` |
+
+So: the SMS person formats the notify payload directly (`f"${remaining:.2f}"`) and must **not** divide by 100. The website multiplies by 100 before writing. The MCP server converts at its own boundary, so Claude only ever sees dollars.
+
 ## Hosting (everyone)
 
 - The Claude app reaches the MCP server from Anthropic's cloud, so the server must be on a public HTTPS URL. `localhost` only works for Claude Code.
