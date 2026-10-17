@@ -148,6 +148,31 @@ async def expire_request(request_id: str) -> None:
         )
 
 
+async def delete_all_requests() -> int:
+    """Every spend request, for resetting a demo. Test dollars only."""
+    p = pool()
+    await p.open()
+    async with p.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("delete from public.spend_requests")
+            return cur.rowcount
+
+
+async def delete_requests_by_phone(phone: str) -> int:
+    p = pool()
+    await p.open()
+    async with p.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """delete from public.spend_requests
+                   where user_id = (
+                     select id from public.profiles where phone = %s
+                   )""",
+                ("+" + phone.strip().lstrip("+"),),
+            )
+            return cur.rowcount
+
+
 async def delete_requests(key: str) -> int:
     p = pool()
     await p.open()
