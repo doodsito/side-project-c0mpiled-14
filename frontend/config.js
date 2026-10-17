@@ -4,11 +4,13 @@
 // `${MCP_BASE_URL}/mcp/${connector_key}`, so this must be reachable from the public
 // internet — the Claude app calls it from Anthropic's cloud, not from this browser.
 //
-// Currently a cloudflared quick tunnel, which gets a NEW address every time it
-// restarts. When connector links stop working, this is almost always why: ask the MCP
-// server person for the current URL and change the line below. A stable ngrok domain or
-// a Railway deploy replaces it before the demo.
-const MCP_BASE_URL = "https://knowing-converter-ion-groove.trycloudflare.com";
+// This is an ngrok STATIC domain: it survives restarts of the tunnel and the server, so
+// connector links handed out earlier keep working. Verified end to end against the live
+// Supabase project.
+//
+// If links ever stop working, check the server is actually up first:
+// curl https://sepia-pupil-giddily.ngrok-free.dev/health
+const MCP_BASE_URL = "https://sepia-pupil-giddily.ngrok-free.dev";
 
 // Supabase. The publishable key belongs in the browser: Row Level Security limits each
 // user to their own rows, and the MCP server's functions are not granted to it at all.

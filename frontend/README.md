@@ -11,11 +11,17 @@ Open `index.html` in a browser, or run `npx serve frontend` from the repo root.
 **`config.js` is the only file to edit when an address changes.** It holds `MCP_BASE_URL`,
 `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; `index.html` loads it before `api.js`.
 
-`MCP_BASE_URL` is currently a cloudflared quick tunnel, which **gets a new address every
-time it restarts**. When connector links stop working, that is almost always why — ask
-the MCP server person for the current URL and change that one line. The Connect screen
-now checks the server's `/health` and says so on the page, so a stale address shows up
-as "EEVEE is not reachable at that address" instead of failing later inside Claude.
+`MCP_BASE_URL` is an **ngrok static domain** (`https://sepia-pupil-giddily.ngrok-free.dev`),
+so it survives restarts of both the tunnel and the server — connector links handed out
+earlier keep working. Verified by restarting each and re-using an unchanged link.
+
+The Connect screen still checks the server's `/health` and reports it on the page, so if
+the server is genuinely down the user sees "EEVEE is not reachable at that address"
+rather than a link that fails later inside Claude. To check by hand:
+
+```sh
+curl https://sepia-pupil-giddily.ngrok-free.dev/health
+```
 
 ## Backend calls
 

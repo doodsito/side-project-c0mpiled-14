@@ -18,12 +18,12 @@ So: the SMS person formats the notify payload directly (`f"${remaining:.2f}"`) a
 ## Hosting (everyone)
 
 - The Claude app reaches the MCP server from Anthropic's cloud, so the server must be on a public HTTPS URL. `localhost` only works for Claude Code.
-- The MCP server runs behind an ngrok static domain for the demo, so the URL stays the same across restarts. Railway is the fallback. It is not tied to one machine: `mcp-server/README.md` sets it up from a clean clone on macOS, Linux or Windows, and `scripts/init_db.py` can create the schema and a demo user against any database, so anyone on the team can run it.
+- The MCP server runs behind an ngrok **static domain**: `https://sepia-pupil-giddily.ngrok-free.dev`. It survives restarts of the tunnel and the server, so connector links stay valid (verified). Health check: `curl https://sepia-pupil-giddily.ngrok-free.dev/health`. Railway is the fallback. It is not tied to one machine: `mcp-server/README.md` sets it up from a clean clone on macOS, Linux or Windows, and `scripts/init_db.py` can create the schema and a demo user against any database, so anyone on the team can run it.
 - The SMS person's Twilio reply webhook also needs a public HTTPS URL. If you don't have one, let me know.
 
 ## The website person: setup and Connect Claude screen
 
-- **Connector link:** `{MCP_BASE_URL}/mcp/{connector_key}`. Read `MCP_BASE_URL` from an env var. The real value arrives around 15:10.
+- **Connector link:** `{MCP_BASE_URL}/mcp/{connector_key}`. **`MCP_BASE_URL` is now set** in `frontend/config.js` to `https://sepia-pupil-giddily.ngrok-free.dev` — nothing more needed from you on this.
 - **connector_key:** don't generate it yourself. Call the DB's `rotate_connector_key()` RPC as the signed-in user; it returns the key once (`wk_` + 48 hex) and stores only a sha256 hash. Show it on the Connect screen and warn that it won't be shown again. It is the only auth, so it must not be guessable or shared.
 - **Claude Code command:** the spec's version is missing a flag. Without `--transport http`, Claude Code tries to run the link as a program. Use:
   `claude mcp add --transport http wallie {link}`
