@@ -33,7 +33,23 @@ async def send_approval_text(payload: dict) -> bool:
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
             resp = await client.post(url, json=payload, headers=headers)
-        return resp.is_success
     except httpx.HTTPError as exc:
-        print(f"[notify:error] {exc}", flush=True)
+        print(f"[notify:error] {type(exc).__name__} calling {url}: {exc}", flush=True)
         return False
+
+    if resp.is_success:
+        return True
+
+    # Say why. A silent failure here looks identical to a Twilio problem, an auth
+    # problem and a crashed texting service, and the request gets cancelled either way.
+    body = " ".join(resp.text.split())[:200] or "(empty body)"
+    hint = {
+        401: "the shared NOTIFY_SECRET does not match",
+        403: "the texting service refused the request",
+        404: "NOTIFY_URL is wrong, or its tunnel has moved",
+        502: "the texting service is reachable but its handler failed (often Twilio "
+        "credentials, or a trial account texting an unverified number)",
+        503: "the texting service is down",
+    }.get(resp.status_code, "unexpected status")
+    print(f"[notify:error] POST {url} -> {resp.status_code} ({hint}): {body}", flush=True)
+    return False
