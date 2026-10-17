@@ -200,7 +200,7 @@ where user_id = %s and status = 'pending' and created_at < now() - interval '10 
 Times are targets. If a step runs 10+ min over, tell the user and cut scope: drop stretch items first, then the concurrency script (never the lock itself).
 
 - [ ] **0. Contract out (by 14:05).** User sends `docs/TEAM-CONTRACT.md` to the team. *(Done by the user; confirm with them.)*
-- [ ] **1. Spike (14:05–14:20).**
+- [x] **1. Spike (14:05–14:20).**
   1. `uv init --app --python 3.12` in `mcp-server/`.
   2. `uv add fastmcp "psycopg[binary,pool]" httpx python-dotenv uvicorn` and `uv add --dev pytest`.
   3. Write `server.py` with a temporary `whoami` tool that returns the key from the path.
@@ -267,3 +267,4 @@ When you reach the trigger, stop and give the user the "ask" text to pass on. If
   - Wally dropped.
   - One-purchase-in-flight lock (agent key = pending `request_id`).
   - Wrote `docs/TEAM-CONTRACT.md` and this handoff plan.
+- 14:07 Step 1 done (Linux, not Windows — adapted paths, no winget/uv.exe). `uv init --app`, flattened to a plain `mcp-server/` layout (no `src/`). Confirmed fastmcp 4.1.0's `http_app(stateless_http=...)` and `get_http_request` match the plan's sketch exactly, no changes needed. `server.py` with `whoami` + `KeyFromPath` running under `uv run uvicorn server:app --port 8000`; `scripts/smoke.py` confirms `/mcp/demo` → `whoami` returns `{"connector_key": "demo"}`. Asked the user to confirm `TEAM-CONTRACT.md` went to Persons 1/2/3 (step 0, still open).
