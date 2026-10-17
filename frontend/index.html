@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EEVEE · Give your AI an allowance</title>
+  <meta name="description" content="Set spending limits for Claude. Approve purchases by text.">
+  <meta name="theme-color" content="#f7f6f2">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="#/">EEVEE</a>
+  </header>
+
+  <main>
+    <!-- Landing -->
+    <div class="view landing" data-view="landing" data-title="EEVEE · Give your AI an allowance">
+      <section class="hero">
+        <div class="hero-copy">
+          <h1 tabindex="-1">Give your AI an allowance.</h1>
+          <p class="lede">Set spending limits for Claude. Approve purchases by text.</p>
+          <div class="cta">
+            <a class="button button-primary" href="#/setup/1">Set up EEVEE</a>
+          </div>
+          <section class="how" aria-labelledby="how-title">
+            <h2 class="how-title" id="how-title">How it works</h2>
+            <ol class="how-steps">
+              <li>
+                <span class="how-num" aria-hidden="true">1</span>
+                <h3>Set your allowance</h3>
+                <p>A weekly budget split into Food, Travel, Shopping, Software.</p>
+              </li>
+              <li>
+                <span class="how-num" aria-hidden="true">2</span>
+                <h3>Connect Claude</h3>
+                <p>Works with the Claude app and Claude Code.</p>
+              </li>
+              <li>
+                <span class="how-num" aria-hidden="true">3</span>
+                <h3>Approve by text</h3>
+                <p>Small purchases go through, bigger ones ask you first.</p>
+              </li>
+            </ol>
+          </section>
+        </div>
+
+        <figure class="phone">
+          <div class="phone-speaker" aria-hidden="true"></div>
+          <div class="phone-header" aria-hidden="true">
+            <span class="phone-avatar">E</span>
+            <span class="phone-contact">EEVEE</span>
+            <span class="phone-meta">Text Message · Today 2:14 PM</span>
+          </div>
+          <div class="phone-body">
+            <ol class="thread" aria-label="Example text conversation with EEVEE" aria-live="polite">
+              <li class="bubble bubble-in"><span class="visually-hidden">EEVEE: </span>Claude wants to spend $29 on a software subscription. Software: $75 left this week ($46 after this). Reply Y to approve or N to decline.</li>
+              <li class="bubble bubble-out is-pending" id="sms-reply"><span class="visually-hidden">You: </span><span id="sms-reply-text">Y</span></li>
+              <li class="bubble bubble-in is-pending" id="sms-result"><span class="visually-hidden">EEVEE: </span><strong class="approved">Approved.</strong> Claude can proceed.</li>
+            </ol>
+            <div class="quick-replies" id="quick-replies">
+              <p class="quick-label">Try it: tap to reply</p>
+              <div class="quick-buttons">
+                <button class="reply-button reply-yes" type="button" data-reply="Y" aria-label="Reply Y to approve">Y</button>
+                <button class="reply-button reply-no" type="button" data-reply="N" aria-label="Reply N to decline">N</button>
+              </div>
+            </div>
+          </div>
+          <button class="phone-replay is-pending" type="button" id="phone-replay">Replay</button>
+          <div class="phone-overlay" id="phone-overlay" aria-hidden="true" hidden></div>
+        </figure>
+      </section>
+    </div>
+
+    <!-- Step 1: Verify your phone -->
+    <div class="view step" data-view="step-1" data-title="Verify your phone · EEVEE" hidden>
+      <a class="back-link" href="#/">← Back</a>
+      <div class="progress">
+        <p class="progress-label">Step 1 of 4</p>
+        <div class="progress-bar" aria-hidden="true"><span class="is-on"></span><span></span><span></span><span></span></div>
+      </div>
+      <div class="step-intro">
+        <h1 tabindex="-1">Verify your phone</h1>
+        <p class="lede">EEVEE texts this number when Claude wants to spend.</p>
+      </div>
+
+      <form id="phone-form" novalidate>
+        <fieldset class="form lock">
+          <div class="field">
+            <label for="phone">Mobile number</label>
+            <input class="input" id="phone" type="tel" autocomplete="tel-national" placeholder="(415) 555-0123" aria-describedby="phone-help phone-error">
+            <p class="help" id="phone-help">US numbers only.</p>
+          </div>
+          <p class="error" id="phone-error" role="alert" hidden></p>
+          <button class="button button-primary" type="submit" id="send-button">Send code</button>
+        </fieldset>
+      </form>
+
+      <form id="code-form" novalidate hidden>
+        <fieldset class="form lock">
+          <p>We sent a 6-digit code to <strong data-phone-display></strong>.</p>
+          <div class="field">
+            <label for="code">Code</label>
+            <input class="input code-input" id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-describedby="code-hint code-error">
+            <p class="hint" id="code-hint">Demo: use 123456</p>
+          </div>
+          <p class="error" id="code-error" role="alert" hidden></p>
+          <p class="status" id="code-status" role="status" hidden></p>
+          <button class="button button-primary" type="submit" id="verify-button">Verify</button>
+          <div class="inline-actions">
+            <button class="link-button" type="button" data-action="change-number">Change number</button>
+            <button class="link-button" type="button" id="resend-button">Resend code</button>
+          </div>
+        </fieldset>
+      </form>
+
+      <div class="form" id="verified-panel" hidden>
+        <p>Verified: <strong data-phone-display></strong></p>
+        <a class="button button-primary" href="#/setup/2">Continue</a>
+        <div class="inline-actions">
+          <button class="link-button" type="button" data-action="change-number">Change number</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Weekly allowance -->
+    <div class="view step" data-view="step-2" data-title="Weekly allowance · EEVEE" hidden>
+      <a class="back-link" href="#/setup/1">← Back</a>
+      <div class="progress">
+        <p class="progress-label">Step 2 of 4</p>
+        <div class="progress-bar" aria-hidden="true"><span class="is-on"></span><span class="is-on"></span><span></span><span></span></div>
+      </div>
+      <div class="step-intro">
+        <h1 tabindex="-1">Weekly allowance</h1>
+        <p class="lede">How much can Claude spend each week, in total?</p>
+      </div>
+
+      <form class="form" id="budget-form" novalidate>
+        <div class="field">
+          <label for="budget">Weekly budget</label>
+          <div class="money-input">
+            <span aria-hidden="true">$</span>
+            <input class="input" id="budget" type="number" min="1" step="1" inputmode="numeric" placeholder="200" aria-describedby="budget-note budget-error">
+          </div>
+          <p class="note" id="budget-note">These are test dollars. Nothing real is charged.</p>
+        </div>
+        <p class="error" id="budget-error" role="alert" hidden></p>
+        <button class="button button-primary" type="submit">Continue</button>
+      </form>
+    </div>
+
+    <!-- Step 3: Envelopes -->
+    <div class="view step" data-view="step-3" data-title="Envelopes · EEVEE" hidden>
+      <a class="back-link" href="#/setup/2">← Back</a>
+      <div class="progress">
+        <p class="progress-label">Step 3 of 4</p>
+        <div class="progress-bar" aria-hidden="true"><span class="is-on"></span><span class="is-on"></span><span class="is-on"></span><span></span></div>
+      </div>
+      <div class="step-intro">
+        <h1 tabindex="-1">Envelopes</h1>
+        <p class="lede">Split your <span data-budget-display></span> weekly budget into four envelopes.</p>
+      </div>
+
+      <form id="envelopes-form" novalidate>
+        <fieldset class="form lock">
+          <div class="split-counter" id="split-counter" aria-live="polite">
+            <strong id="left-amount">$0</strong> left to split
+          </div>
+          <p class="note">Under the auto-approve amount, Claude can buy without asking. Above it, you get a text.</p>
+          <fieldset class="envelope-group" id="envelope-group"></fieldset>
+          <p class="error" id="envelopes-problem" aria-live="polite" hidden></p>
+          <p class="error" id="save-error" role="alert" hidden></p>
+          <button class="button button-primary" type="submit" id="save-button">Continue</button>
+        </fieldset>
+      </form>
+    </div>
+
+    <!-- Step 4: Connect Claude -->
+    <div class="view step" data-view="step-4" data-title="Connect Claude · EEVEE" hidden>
+      <a class="back-link" href="#/setup/3">← Back</a>
+      <div class="progress">
+        <p class="progress-label">Step 4 of 4</p>
+        <div class="progress-bar" aria-hidden="true"><span class="is-on"></span><span class="is-on"></span><span class="is-on"></span><span class="is-on"></span></div>
+      </div>
+      <div class="step-intro">
+        <div class="saved-mark" id="saved-mark" aria-hidden="true"></div>
+        <h1 tabindex="-1">Connect Claude</h1>
+        <p class="lede">Your allowance is saved. This is your personal link.</p>
+      </div>
+
+      <div class="copy-row">
+        <p class="link-box" id="personal-link"></p>
+        <button class="button button-secondary" type="button" data-copy="personal-link">Copy link</button>
+      </div>
+
+      <section class="connect-section">
+        <h2>Claude app</h2>
+        <p>Add this link as a connector in Claude's settings.</p>
+      </section>
+
+      <section class="connect-section">
+        <h2>Claude Code</h2>
+        <p>Run this in your terminal.</p>
+        <div class="copy-row">
+          <pre class="code-box" id="cli-command"></pre>
+          <button class="button button-secondary" type="button" data-copy="cli-command">Copy</button>
+        </div>
+      </section>
+
+      <section class="connect-section">
+        <h2>Last step</h2>
+        <p>Paste this line into Claude's instructions.</p>
+        <div class="copy-row">
+          <p class="quote-box" id="instruction-line">Before any purchase, check with EEVEE.</p>
+          <button class="button button-secondary" type="button" data-copy="instruction-line">Copy</button>
+        </div>
+      </section>
+
+      <details class="demo-data">
+        <summary>Demo data</summary>
+        <pre id="demo-json"></pre>
+      </details>
+
+      <p class="end-links"><a href="#/">Back to home</a></p>
+      <p class="visually-hidden" id="copy-status" role="status"></p>
+    </div>
+  </main>
+
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
