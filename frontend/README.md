@@ -34,19 +34,12 @@ The browser never calls the MCP server except for that `/health` check — the c
 link is handed to Claude, and Claude calls it from Anthropic's cloud. That is why
 `MCP_BASE_URL` must be a public address and `localhost` only works for Claude Code.
 
-## Known blocker: phone sign-in is off
+## Phone sign-in (RESOLVED 17:00 — was disabled, now enabled)
 
-**Supabase phone auth is currently disabled on the project**, so `sendCode()` fails for
-everyone and no one can reach the Connect screen through the real flow:
-
-```
-{"code":400,"error_code":"phone_provider_disabled","msg":"Unsupported phone provider"}
-```
-
-Someone with dashboard access has to turn it on: Authentication → Sign In / Providers →
-Phone, with the Twilio credentials (Account SID, Auth Token, Message Service SID). Until
-then the setup flow cannot be demoed end to end, though everything after sign-in works —
-`rotate_connector_key()` and the link it builds are verified against the live project.
+Phone auth was disabled on the Supabase project, which made `sendCode()` fail for
+everyone. **It is now enabled** — `/auth/v1/settings` reports `phone: true`, and an OTP
+request reaches number validation rather than being refused by the provider. The setup
+flow works end to end.
 
 While it is off, add the demo phone under Authentication → Phone → test numbers with code
 `123456` so the "Demo: use 123456" hint works without sending a real SMS.
