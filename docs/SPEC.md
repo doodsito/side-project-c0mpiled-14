@@ -2,7 +2,7 @@
 
 Source: team Claude Doc (pasted by user 2026-10-17). This is a copy; the doc is the source of truth if they differ.
 
-**Changes agreed since the doc (2026-10-17):** envelope categories are free text, user-defined (food/travel/shopping/software are examples, not a fixed set). Only one purchase may be in flight per user (concurrency lock). Integration details per team: `docs/TEAM-CONTRACT.md`. The MCP server also gained a `requests.url` column so Claude can share a purchase link after approval.
+**Changes agreed since the doc (2026-10-17):** only one purchase may be in flight per user (concurrency lock). Categories are the fixed four below — this was debated and reverted a few times between 14:14 and 15:20; the schema in `supabase/migrations/` is the truth. Money is stored as integer cents. Phone verification uses Supabase Phone OTP. Integration details per team: `docs/TEAM-CONTRACT.md`.
 
 ## Product summary
 
@@ -66,8 +66,14 @@ create table requests (
 ```
 
 - Statuses: pending, approved, declined, expired.
-- Spent in envelope = sum of approved requests in the last 7 days. Pending counts as reserved.
+- Spent in envelope = sum of approved requests in the last 7 days.
 - The connector_key in the user's link identifies them to the MCP server.
+
+> **The SQL above is the original sketch and is NOT what was built.** The live schema is
+> `supabase/migrations/20261017214205_restore_rpc_schema.sql`: `profiles` / `envelopes` /
+> `spend_requests`, integer cents, the fixed four categories, and the
+> `check_budget` / `request_spend` / `get_status` / `resolve_reply` RPCs that the MCP
+> server and the Twilio webhook call. See `supabase/README.md`.
 
 ## Approval rules
 

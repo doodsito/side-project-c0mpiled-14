@@ -11,28 +11,26 @@ What each team needs to build against so the pieces connect at integration. Time
 ## Person 1: setup and Connect Claude screen
 
 - **Connector link:** `{MCP_BASE_URL}/mcp/{connector_key}`. Read `MCP_BASE_URL` from an env var. The real value arrives around 15:10.
-- **connector_key:** random and URL-safe, at least 22 characters (`crypto.randomUUID()` or `secrets.token_urlsafe(16)`). Generate it when the user is created and store it in `users.connector_key`. It is the only auth, so it must not be guessable. The column enforces `^[A-Za-z0-9_-]+$`, so no other characters.
+- **connector_key:** don't generate it yourself. Call the DB's `rotate_connector_key()` RPC as the signed-in user; it returns the key once (`wk_` + 48 hex) and stores only a sha256 hash. Show it on the Connect screen and warn that it won't be shown again. It is the only auth, so it must not be guessable or shared.
 - **Claude Code command:** the spec's version is missing a flag. Without `--transport http`, Claude Code tries to run the link as a program. Use:
   `claude mcp add --transport http wallie {link}`
 - **Claude app:** Settings → Connectors → Add custom connector → paste the link.
-- **Categories are free text** chosen by the user; the four in the spec are examples. Don't allow two envelopes with the same name (case-insensitive) for one user — a unique index enforces it. Category names are trimmed, 1-50 characters.
-- **Ignore my 14:20 note that said categories were the fixed four.** The schema went back and forth; as of 15:00 the merged schema on `main` is free text and the MCP server matches it. Sorry for the churn.
+- **Categories are the FIXED FOUR: `food`, `travel`, `shopping`, `software`.** This is final as of 15:20 — the schema constrains them and creates all four automatically when a user signs up, so your envelopes screen should **edit the limits on those four existing rows**, never create or name new ones. (This flip-flopped between 14:14 and 15:20 and I sent you the wrong thing twice — sorry. The current repo is the truth; if you built a free-text input, that's the one thing that needs changing.)
+- **Setup writes:** `profiles.weekly_allowance_cents`, and `envelopes.weekly_limit_cents` / `auto_approve_under_cents`. All money is **integer cents** (`2900` = $29.00).
+- **Phone verification is Supabase Phone OTP** (`signInWithOtp` then `verifyOtp`), with Twilio as the SMS provider — profiles and envelopes are created by a trigger on signup, so don't insert them yourself.
 - **Phone numbers** go in E.164 format (`+15105551234`) so they match Twilio's `From`.
 
 ## Person 2: database
 
-The merged schema on `main` (`supabase/migrations/20261017211932_align_with_team_contract.sql`) is what the MCP server is built against and tested on: `users` / `envelopes` / `requests`, numeric dollars, free-text categories, the `url` column, and both unique indexes. **Please don't swap it again** — `fix/restore-rpc-schema` would break the working server. If something in it must change, tell me first.
+**The RPC schema (`20261017214205_restore_rpc_schema.sql`) is what the MCP server now runs on, and it is verified working end to end.** The schema changed three times between 14:14 and 15:20 and each flip broke one side of the integration, so: **this is frozen. No more schema swaps before the demo.** If something genuinely must change, message me first and we change it together.
+
+For the record on how the loop happened: your 14:47 commit cited `mcp-server/db.py` as the reason to revert, but I had just changed `db.py` to match your 14:34 schema — we were each following the other. Guard added on my side: `tests/test_sql_parity.py` asserts your `request_spend` RPC agrees with my reference `rules.py`, so if the decision logic ever diverges a test fails instead of the demo.
 
 What I still need:
 
-- **DATABASE_URL:** the Postgres connection string, sent privately (Supabase -> Connect -> Session pooler). It must be the `postgres` user: RLS is on with no policies, so the publishable key can't reach the tables.
-- **Confirm the demo seed is applied** to the real project (`supabase/seed_demo.sql`) with the phone that receives the demo texts, and tell me the connector key if it isn't `demo`.
-
-Budget definitions the server uses (please match them in the UI so the numbers agree):
-
-- spent = sum of `approved` requests with `created_at` in the last 7 days
-- reserved = sum of `pending` requests
-- remaining = `weekly_limit` - spent - reserved
+- **DATABASE_URL** — the only thing blocking me from testing against the real project. Supabase -> Connect -> Session pooler, sent privately. Must be the `postgres`/`service_role` user; the RPCs are granted to `service_role` only.
+- **Confirm `supabase/seed_demo.sql` is applied** with the phone that receives the demo texts, and send me the connector key you set (the seed deliberately doesn't commit one).
+- **Nice to have if there's time:** `alter table public.spend_requests add column url text;` so an approved purchase link survives into `get_status`. Not demo-blocking.
 
 ## Person 3: texting
 

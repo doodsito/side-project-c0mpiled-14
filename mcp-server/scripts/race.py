@@ -1,16 +1,24 @@
 """Fires two request_spend calls at once: expect exactly one pending, one busy.
 
 uv run python scripts/race.py [connector_key] [base]
+
+Clears the user's existing requests first, so a leftover pending one from an earlier
+run cannot turn both racers into "busy".
 """
 
 import asyncio
 import os
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastmcp import Client
 
-load_dotenv()
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+load_dotenv(ROOT / ".env")
+
+import db  # noqa: E402
 
 KEY = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("DEMO_KEY", "demo")
 BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8000"
@@ -32,6 +40,10 @@ async def fire(merchant: str, amount: float):
 
 
 async def main():
+    cleared = await db.delete_requests(KEY)
+    if cleared:
+        print(f"(cleared {cleared} existing request(s) for {KEY!r})")
+
     a, b = await asyncio.gather(fire("Figma", 29), fire("Linear", 31))
     print("A:", a.get("status"), a.get("merchant"))
     print("B:", b.get("status"), b.get("merchant"))

@@ -26,15 +26,16 @@ After each step: tick it, add a line to **Log**, commit to `main` (see **Working
 | D3 | **Hosting:** the Claude app needs public HTTPS. Run on this laptop behind an **ngrok static domain** (stable URL). Fallback: Railway. Claude Code can use `http://localhost:8000/...` for local testing. |
 | D4 | **Texts:** we insert the `pending` row, then `POST NOTIFY_URL` to Person 3 (payload in `docs/TEAM-CONTRACT.md`). Non-2xx or >5 s timeout → mark the request `expired`, tell Claude to retry. If `NOTIFY_URL` is unset (dev), print the text to the console and use `scripts/reply.py` to simulate Y/N. |
 | D5 | **Expiry is lazy, with no cron.** A `pending` row older than 10 min is set to `expired` by whoever touches it next: us in `request_spend`/`get_status`, Person 3 in the reply webhook. |
-| D6 | **Budget math lives in our SQL**, inside the same transaction as the insert, so it is atomic. spent = approved requests with `created_at` in the last 7 days; reserved = pending; remaining = limit − spent − reserved. *(Restored 15:00 after the schema settled — see Log.)* |
-| D7 | **Categories are free text** per user. Match `category` case-insensitively and trimmed against the user's envelopes. No match → return `error` listing the user's categories. Zero envelopes → error telling them to finish setup. *(Restored 15:00 — see Log.)* |
+| D6 | **(as of 15:20) Budget math AND the decision live in Person 2's SQL**, atomic inside `request_spend`. spent = approved requests from the last 7 days; checked against both the envelope limit and the weekly allowance; `*_remaining_cents` already account for approved requests. Pending rows are not subtracted as "reserved" — the one-pending-per-user lock makes that moot. Money is **integer cents** in the DB; the tools convert to dollars. |
+| D7 | **(as of 15:20) Categories are the fixed four** — `food`, `travel`, `shopping`, `software` — enforced by a check constraint and created for every user by the `auth.users` trigger. We lower/trim the input; the RPC raises `invalid_category` otherwise. There is no "zero envelopes" case. **Person 1 must not offer free-text categories** — the contract has been corrected twice on this; confirm they saw it. |
 | D8 | **Concurrency ("agent key"):** one purchase in flight per user. A `pending` request is a lock (lease). Its `request_id` is the key the requesting agent holds. While it exists, any other `request_spend` for that user returns `busy`, even for amounts that would be auto-approved. **Exception:** a retry with the same amount + merchant (case-insensitive) returns the existing pending request. The lock is released by Y, N or expiry. See **Concurrency design**. |
 | D9 | **Waiting for Y/N:** `get_status` long-polls the DB every 1 s for up to 25 s and returns early on any change. Claude calls it again while it is still `pending`. `request_id` is optional and defaults to the user's latest request. |
-| D10 | **Purchase link:** `request_spend` takes an optional `url`, stored in `requests.url`. Claude shares the link after approval and never buys anything itself. *(Restored 15:00; the column exists in the current schema.)* |
+| D10 | **(as of 15:20) Purchase link is not persisted.** `spend_requests` has no `url` column. `request_spend` still accepts `url` and forwards it to the approval text, but `get_status` cannot return it on a later poll. Fine for the demo — the Claude turn that called `request_spend` still has the link in context — but if a session is resumed after approval the link is gone. Ask Person 2 for `alter table spend_requests add column url text;` if there is time. |
 | D11 | **Out of scope:** wally/RunAnywhere (not used), OAuth, the `users.weekly_budget` total (shown in `check_budget`, not enforced), a cancel tool (stretch only). |
-| D12 | **(new, 15:00) Runs anywhere, not just one laptop.** `README.md` is the setup entry point: `uv sync`, `cp .env.example .env`, `uv run python scripts/init_db.py`, run. Works on macOS/Linux/Windows; `uv.lock` is a universal resolution (verified: macOS arm64 + x86_64 wheels present). `scripts/init_db.py` creates the schema and a demo user against any `DATABASE_URL`, so a fresh clone needs no Supabase credentials — `docker compose up -d` gives a local Postgres. `sql/local_dev_schema.sql` mirrors the current schema for plain Postgres (the migrations can't replay outside Supabase: the first references `auth.users`). Source of truth stays `supabase/migrations/`. |
+| D12 | **(new, 15:00) Runs anywhere, not just one laptop.** `README.md` is the setup entry point: `uv sync`, `cp .env.example .env`, `uv run python scripts/init_db.py`, run. Works on macOS/Linux/Windows; `uv.lock` is a universal resolution (verified: macOS arm64 + x86_64 wheels present). A fresh clone needs **no Supabase credentials**: `docker compose up -d` gives a local Postgres, `sql/local_dev_shim.sql` supplies what Supabase provides (the `auth` schema, pgcrypto in `extensions`, the `anon`/`authenticated`/`service_role` roles), and `scripts/init_db.py` then applies **Person 2's migration unchanged** plus a demo user. The schema is never duplicated in `mcp-server/`; source of truth stays `supabase/migrations/`. |
+| D13 | **(new, 15:20) One rule, two implementations, guarded.** The approval decision lives in Person 2's `request_spend` RPC; `rules.py` is the same logic as a pure reference and is **not called at runtime**. `tests/test_sql_parity.py` asserts the RPC agrees with `rules.py` whenever `DATABASE_URL` is set. Keep that test passing — silent drift between the SQL and the documented rules is what caused the 14:14–15:20 schema churn. |
 
-## Approval rules (`rules.py`, pure function, unit-tested)
+## Approval rules (`rules.py`, reference implementation + SQL parity test)
 
 ```python
 def decide(amount, weekly_limit, spent, reserved, auto_approve_under) -> Decision:
@@ -47,15 +48,12 @@ def decide(amount, weekly_limit, spent, reserved, auto_approve_under) -> Decisio
 - "Under" auto-approve is strict `<`: a $10 purchase with auto-approve under $10 needs a text.
 - Round money to cents. Reject `amount <= 0` with `error`.
 - Order of checks inside `request_spend`:
-  1. Validate input.
-  2. Lock the user.
-  3. Expire stale pending requests.
-  4. Pending exists → `busy` (or the idempotent same request).
-  5. Match the category.
-  6. `decide()`.
-  7. Insert.
-  8. Commit.
-  9. Notify if pending.
+  1. Validate input (ours: reject `amount <= 0`).
+  2-8. All inside the `request_spend` RPC: lock the profile row, expire stale pending rows,
+  return `blocked` if one is still pending, match the category, decide, insert, commit.
+  8b. Ours: on `blocked`, compare amount + merchant and return the existing request
+  instead of `busy` if they match (D8's idempotent retry — the RPC does not do this).
+  9. Ours: notify if pending; if the text fails to send, expire the row to release the lock.
 
 ## Concurrency design (D8)
 
@@ -64,14 +62,16 @@ Two layers:
 1. **Short critical section (atomic check-and-insert).** All of `request_spend` steps 2–8 run in ONE Postgres transaction, starting with:
 
    ```sql
-   select id, phone from users where connector_key = %s for update;
+   -- inside private.lock_user_by_key(), called first by every RPC
+   select id from public.profiles where connector_key_hash = private.hash_key(p_key) for update;
    ```
 
    This row lock serializes concurrent `request_spend` calls for the same user, whether from two Claude windows or two agents. The second call waits a few ms, then sees the first one's pending row and returns `busy`. It also stops two auto-approvals from both passing the budget check and overspending.
 2. **Long lease (the pending period).** The `pending` row itself is the lock. The DB enforces it too, belt and braces:
 
    ```sql
-   create unique index one_pending_per_user on requests (user_id) where status = 'pending';
+   create unique index spend_requests_one_pending_idx on public.spend_requests (user_id)
+     where status = 'pending';
    ```
 
    If an insert ever hits a unique violation (`psycopg.errors.UniqueViolation`), return `busy`.
@@ -272,6 +272,12 @@ When you reach the trigger, stop and give the user the "ask" text to pass on. If
 - 14:07 Step 1 done (Linux, not Windows — adapted paths, no winget/uv.exe). `uv init --app`, flattened to a plain `mcp-server/` layout (no `src/`). Confirmed fastmcp 4.1.0's `http_app(stateless_http=...)` and `get_http_request` match the plan's sketch exactly, no changes needed. `server.py` with `whoami` + `KeyFromPath` running under `uv run uvicorn server:app --port 8000`; `scripts/smoke.py` confirms `/mcp/demo` → `whoami` returns `{"connector_key": "demo"}`. Asked the user to confirm `TEAM-CONTRACT.md` went to Persons 1/2/3 (step 0, still open).
 - 14:13 GitHub push auth set up (`gh auth login --web`, user tjor06). Pushed step 1.
 - 14:16 Step 2 done: `rules.py` (pure `decide()`, `Decimal` cents rounding) + `tests/test_rules.py` (7 cases: auto-approve, needs-approval, over-budget with `over_by`, spent+reserved interaction, exact-remaining boundary, strict-`<` auto-approve boundary). Added `pytest.ini` (`pythonpath = .`) so flat-layout tests import root modules. `uv run pytest` green.
+- 15:20 **Pivoted to the RPC schema (PR #3, `cde8950`) — the user ruled that whatever is in the repo is correct, so this is now settled.** Third schema state in ~50 min; `main` is back to `profiles`/`envelopes`/`spend_requests` + the four RPCs, integer cents, fixed four categories, no `url` column. `db.py` is an RPC adapter again (close to the 14:38 version at `377ca1e` — the restored migration is byte-identical to the original, so that code still fitted). `server.py` back to cents at the boundary. The D8 idempotent retry stays in Python: the RPC only reports `blocked`, so the same-amount-same-merchant comparison happens in `_blocked()`.
+  - **`rules.py` is no longer called at runtime** — the decision is made in SQL. Rather than delete it or leave it as dead code that silently drifts, it is now the reference implementation, and **`tests/test_sql_parity.py` asserts the RPC agrees with it** on six amounts including the strict-`<` $10 boundary and the `over_by` math. 13 tests pass. This is the guard against the exact failure mode that caused the churn: two implementations of one rule.
+  - **Verified end-to-end on the RPC schema** (local Docker Postgres): $5 → `approved` ($70 left); $29 → `pending` + correct SMS wording; $12 Linear → `busy`; $29 Notion again → idempotent `pending`; reply Y → `approved`; reply N → `declined`; $90 of $75 → `pending`, `over_by` 15.00, "Over by $15.00. Approve anyway? Y/N"; backdated `expires_at` → `expired` + lock released; `race.py` → exactly one `pending`, one `busy`. Errors: bad category, bad key, zero amount, unknown request id. `"  SOFTWARE  "` → `software`.
+  - **Clone-and-run works without Supabase credentials**, which the RPC schema otherwise prevents (it needs `auth.users`, `service_role`, pgcrypto in `extensions`). `sql/local_dev_shim.sql` supplies exactly those, then `init_db.py` applies **Person 2's migration unchanged** — so the schema is not duplicated here and can't drift. Verified by exporting the actual commit with `git archive` and running the README top to bottom against an empty database: `uv sync` → `cp .env.example .env` → `init_db.py` → `pytest` (13 pass) → `smoke.py` → `race.py` → reply Y → `approved`. No `.env` or `.venv` in the tree.
+  - That run caught a real bug: `race.py` reported FAIL when run after `smoke.py`, because a leftover pending request correctly made both racers `busy`. It now clears the user's requests first, so it is order-independent.
+  - Claude Code still connected: `claude mcp list` → `wallie ... ✔ Connected`.
 - 15:05 **The schema flip-flopped twice; it has now settled on the ORIGINAL contract design, and the server is verified working against it.** Sequence: `c2ccae3` (14:14) RPC schema → `cc99ad1` (14:34, on main) contract schema (`users`/`envelopes`/`requests`, numeric dollars, free text, `url`, both unique indexes, demo seed) → `fix/restore-rpc-schema` (14:47, **unmerged**) would flip back to the RPCs, citing my `db.py` as the reason. That is a feedback loop: I adapted to their schema, they reverted to match my adaptation. **Broke it by building against `main` and asking Person 2 in the contract not to swap again.** Rewrote `db.py` as the raw transactional SQL the plan originally called for (so `rules.py` is in use again), restored D6/D7/D10, and un-did my 14:20 doc edits — `docs/SPEC.md` and `docs/TEAM-CONTRACT.md` now say free text again, with an explicit apology line to Person 1 for the churn.
   - **Verified end-to-end against a real Postgres** (Docker, `postgres:16-alpine`, Person 2's `supabase/seed_demo.sql` applied unmodified): $5 → `approved` with remaining $70; $29 → `pending` + the exact contract SMS wording; $12 Linear → `busy`; $29 Notion again → idempotent `pending` (D8); reply Y → `get_status` returns `approved` in 1.4 s (returns early, not the full 25 s); reply N → `declined`; $90 of $75 → `pending` with `over_by` 15.00 and the "Over by $15.00. Approve anyway? Y/N" text; backdated row → lazy expiry → `expired` and the lock releases; `race.py` → exactly one `pending`, one `busy`. Errors: bad category lists the real categories, bad key, zero amount, unknown request id. `"  SOFTWARE  "` matches `Software` (D7 trimmed + case-insensitive).
   - **Claude Code connected:** `claude mcp list` → `wallie: http://localhost:8000/mcp/demo (HTTP) - ✔ Connected`. Ticked the spec box. A human still needs to run the demo prompt in a session to confirm Claude *chooses* the tools (I can't verify its tool-selection behaviour from here).
