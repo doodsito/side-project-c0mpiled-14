@@ -1,0 +1,650 @@
+/* Eevee: calm, sober, mobile-first.
+   One accent (deep green), used only for primary buttons and "Approved" states. */
+
+:root {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --ink: #171715;
+  --ink-muted: #5d5c57;
+  --line: #e2e0d9;
+  --line-strong: #b8b5ac;
+  --code-bg: #edece7;
+  --placeholder: #9a978e;
+  --accent: #1e5b3d;
+  --accent-hover: #164530;
+  --on-accent: #ffffff;
+  --danger: #a3241a;
+  --bubble-in: #e9e8e3;
+  --bubble-out: #171715;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 12px;
+  --gutter: 20px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 1.125rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[hidden] { display: none !important; }
+
+h1, h2, h3, p { margin: 0; }
+
+h1 {
+  font-size: clamp(2.25rem, 9vw, 3.75rem);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  font-weight: 650;
+  text-wrap: balance;
+}
+
+h2 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 650;
+}
+
+h3 { font-size: 1.125rem; font-weight: 650; }
+
+a { color: inherit; text-underline-offset: 0.2em; }
+
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+[tabindex="-1"]:focus { outline: none; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Layout */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 20px var(--gutter);
+}
+
+.wordmark {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+main { padding: 0 var(--gutter) 40px; }
+
+.view { max-width: 72rem; margin: 0 auto; }
+.step { max-width: 34rem; }
+
+.lede { font-size: 1.25rem; color: var(--ink-muted); max-width: 34ch; }
+
+/* Landing: the whole page fits on one screen on laptops and desktops. */
+
+.landing { display: grid; gap: 40px; }
+
+.hero { display: grid; gap: 40px; padding-top: 8px; }
+
+.hero-copy { display: grid; gap: 20px; align-content: center; }
+
+.cta { display: grid; gap: 10px; margin-top: 8px; }
+
+
+.phone {
+  width: min(100%, 320px);
+  margin: 0 auto;
+  padding: 12px 12px 24px;
+  background: var(--surface);
+  border: 9px solid var(--ink);
+  border-radius: 42px;
+  position: relative;
+  box-shadow: 0 30px 60px -36px rgb(23 23 21 / 0.35);
+}
+
+.phone-speaker {
+  width: 76px;
+  height: 20px;
+  margin: 0 auto 14px;
+  background: var(--ink);
+  border-radius: 999px;
+}
+
+.phone-header {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.phone-avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--bubble-in);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.phone-contact { font-size: 0.9375rem; font-weight: 600; }
+.phone-meta { font-size: 0.8125rem; color: var(--ink-muted); }
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bubble {
+  max-width: 86%;
+  padding: 8px 13px;
+  border-radius: 19px;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.bubble-in {
+  align-self: flex-start;
+  background: var(--bubble-in);
+  border-bottom-left-radius: 6px;
+}
+
+.bubble-out {
+  align-self: flex-end;
+  min-width: 44px;
+  text-align: center;
+  background: var(--bubble-out);
+  color: #ffffff;
+  border-bottom-right-radius: 6px;
+}
+
+.approved { color: var(--accent); font-weight: 650; }
+.declined { color: var(--ink-muted); font-weight: 650; }
+
+/* Phone demo: Y / N quick replies sit in the space the reply bubbles will fill, so nothing jumps. */
+
+.phone-body { position: relative; }
+
+.bubble.is-pending,
+.phone-replay.is-pending { visibility: hidden; }
+
+.quick-replies {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.quick-label { font-size: 0.8125rem; color: var(--ink-muted); }
+
+.quick-buttons { display: flex; gap: 12px; }
+
+.reply-button {
+  min-width: 72px;
+  min-height: 44px;
+  padding: 0 20px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.reply-yes { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.reply-yes:hover { background: var(--accent-hover); }
+
+.reply-no { background: #f6e8e6; color: var(--danger); border-color: #f6e8e6; }
+.reply-no:hover { background: #f0dad7; }
+
+.phone-replay {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  background: none;
+  border: 0;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.phone-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  background: rgb(255 255 255 / 0.94);
+  border-radius: 33px;
+  animation: mark-fade 200ms ease-out both;
+  transition: opacity 250ms ease-out;
+}
+
+.phone-overlay.is-leaving { opacity: 0; }
+
+.overlay-label { font-size: 1.125rem; font-weight: 650; }
+.phone-overlay.is-approved .overlay-label { color: var(--accent); }
+.phone-overlay.is-declined .overlay-label { color: var(--ink-muted); }
+
+/* Check mark: the circle draws, then the tick (~600 ms), with a small scale bounce. */
+
+.mark { display: block; width: 72px; height: 72px; overflow: visible; }
+
+.mark circle,
+.mark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1.05;
+}
+
+.mark circle { animation: mark-draw 380ms ease-out forwards; }
+.mark path { animation: mark-draw 260ms ease-out 340ms forwards; }
+
+.mark-approved { color: var(--accent); animation: mark-pop 600ms ease-out both; }
+.mark-declined { color: var(--ink-muted); animation: mark-fade 300ms ease-out both; }
+
+.mark.is-static,
+.mark.is-static circle,
+.mark.is-static path { animation: none; stroke-dashoffset: 0; }
+
+@keyframes mark-draw { to { stroke-dashoffset: 0; } }
+
+@keyframes mark-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes mark-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* How it works: three numbered dots joined by a dotted line, a title and one line each.
+   Phones: a vertical list with the line on the left. Wider screens: three columns. */
+
+.how { display: grid; gap: 16px; margin-top: 16px; }
+
+.how-title { font-size: 1rem; font-weight: 600; }
+
+.how-steps {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  column-gap: 14px;
+  row-gap: 2px;
+}
+
+.how-steps li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 32px;
+  bottom: -14px;
+  left: 12px;
+  border-left: 1.5px dotted var(--line-strong);
+}
+
+.how-num {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.how-steps h3 { padding-top: 2px; font-size: 1rem; line-height: 1.35; }
+.how-steps p { font-size: 0.9375rem; line-height: 1.45; color: var(--ink-muted); }
+
+@media (min-width: 56rem) {
+  /* 72px header + 40px bottom padding on main */
+  .landing { min-height: calc(100svh - 112px); align-content: center; }
+
+  .hero { grid-template-columns: 1.1fr 0.9fr; align-items: center; padding-top: 0; }
+  .hero h1 { font-size: clamp(2.75rem, 5vw, 3.5rem); }
+  .cta .button { justify-self: start; width: auto; min-width: 14rem; }
+
+  .how-steps { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .how-steps li { grid-template-columns: 1fr; row-gap: 4px; }
+  .how-steps li:not(:last-child)::before { top: 13px; right: -14px; bottom: auto; left: 34px; border-left: 0; border-top: 1.5px dotted var(--line-strong); }
+  .how-num { grid-row: auto; margin-bottom: 8px; }
+
+}
+
+/* Shorter laptop screens: trim the phone so nothing scrolls. */
+@media (min-width: 56rem) and (max-height: 820px) {
+  .phone-avatar, .phone-meta { display: none; }
+  .phone-speaker { margin-bottom: 10px; }
+  .hero h1 { font-size: clamp(2.5rem, 4.5vw, 3rem); }
+}
+
+/* Buttons */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.button-primary { background: var(--accent); color: var(--on-accent); }
+.button-primary:hover { background: var(--accent-hover); }
+
+.button-primary:disabled {
+  background: var(--line);
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.button-primary[aria-busy="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.button-secondary {
+  width: auto;
+  min-height: 44px;
+  padding: 0 18px;
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-strong);
+  font-size: 1rem;
+}
+
+.button-secondary:hover { border-color: var(--ink); }
+
+.link-button {
+  padding: 6px 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.link-button:disabled { color: var(--ink-muted); cursor: progress; }
+
+@media (min-width: 40rem) {
+  .step .button-primary { width: auto; min-width: 12rem; justify-self: start; }
+}
+
+/* Setup chrome */
+
+.back-link {
+  display: inline-block;
+  margin: 4px 0 24px;
+  padding: 8px 0;
+  color: var(--ink-muted);
+  font-size: 1rem;
+  text-decoration: none;
+}
+
+.back-link:hover { color: var(--ink); text-decoration: underline; }
+
+.progress { display: grid; gap: 10px; margin-bottom: 32px; }
+
+.progress-label {
+  font-size: 1rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.progress-bar span { height: 4px; border-radius: 2px; background: var(--line); }
+.progress-bar .is-on { background: var(--ink); }
+
+.step h1 { font-size: clamp(2rem, 7vw, 2.5rem); }
+.step .lede { font-size: 1.125rem; }
+
+.step-intro { display: grid; gap: 12px; margin-bottom: 36px; }
+
+.saved-mark .mark { width: 56px; height: 56px; margin-bottom: 4px; }
+
+/* Forms */
+
+.form { display: grid; gap: 24px; }
+
+/* Wraps a form's fields so the whole form can be locked while a request is running. */
+.lock { min-width: 0; margin: 0; padding: 0; border: 0; }
+.field { display: grid; gap: 8px; }
+
+label { font-size: 1rem; font-weight: 600; }
+
+.input {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 1.125rem;
+}
+
+.input::placeholder { color: var(--placeholder); }
+.input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; border-color: var(--ink); }
+.input[aria-invalid="true"] { border-color: var(--danger); }
+.input[aria-invalid="true"]:focus-visible { outline-color: var(--danger); }
+.input:disabled { opacity: 0.6; }
+
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+.money-input { position: relative; }
+
+.money-input span {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
+.money-input .input { padding-left: 34px; font-variant-numeric: tabular-nums; }
+
+.code-input { letter-spacing: 0.3em; font-variant-numeric: tabular-nums; }
+
+.help, .note, .hint, .status { font-size: 1rem; color: var(--ink-muted); }
+.error { font-size: 1rem; color: var(--danger); font-weight: 500; }
+
+.inline-actions { display: flex; flex-wrap: wrap; gap: 24px; }
+
+/* Envelopes */
+
+.split-counter {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 14px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.split-counter strong {
+  margin-right: 4px;
+  font-size: 1.75rem;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-counter.is-over { color: var(--danger); }
+
+.envelope-group {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.envelope {
+  min-width: 0;
+  margin: 0;
+  padding: 20px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.envelope:first-child { padding-top: 4px; }
+
+.envelope legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 0;
+  font-size: 1.125rem;
+  font-weight: 650;
+}
+
+.envelope-fields {
+  clear: both;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.envelope label { font-weight: 500; color: var(--ink-muted); }
+
+/* Connect */
+
+.copy-row { display: grid; gap: 12px; justify-items: start; }
+.copy-row > :first-child { width: 100%; }
+
+.link-box,
+.quote-box {
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+
+.link-box { font-weight: 600; }
+
+.code-box {
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--code-bg);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.connect-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+
+.demo-data {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.demo-data summary {
+  font-size: 1rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.demo-data pre {
+  margin: 12px 0 0;
+  padding: 16px;
+  overflow-x: auto;
+  background: var(--code-bg);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.end-links { margin-top: 32px; font-size: 1rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+
+  /* No drawing, no bounce: the mark simply fades in. */
+  .mark, .mark circle, .mark path { animation: none !important; stroke-dashoffset: 0; }
+  .mark:not(.is-static) { animation: mark-fade 250ms ease-out both !important; }
+}
