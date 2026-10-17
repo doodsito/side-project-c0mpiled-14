@@ -41,92 +41,60 @@ export type Database = {
     Tables: {
       envelopes: {
         Row: {
-          auto_approve_under: number
+          auto_approve_under_cents: number
           category: string
           created_at: string
-          id: string
+          id: number
+          updated_at: string
           user_id: string
-          weekly_limit: number
+          weekly_limit_cents: number
         }
         Insert: {
-          auto_approve_under: number
+          auto_approve_under_cents?: number
           category: string
           created_at?: string
-          id?: string
+          id?: never
+          updated_at?: string
           user_id: string
-          weekly_limit: number
+          weekly_limit_cents?: number
         }
         Update: {
-          auto_approve_under?: number
+          auto_approve_under_cents?: number
           category?: string
           created_at?: string
-          id?: string
+          id?: never
+          updated_at?: string
           user_id?: string
-          weekly_limit?: number
+          weekly_limit_cents?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "envelopes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      requests: {
+      profiles: {
         Row: {
-          amount: number
+          connector_key_hash: string | null
           created_at: string
-          decided_at: string | null
-          description: string | null
-          envelope_id: string
           id: string
-          merchant: string | null
-          status: string
-          url: string | null
-          user_id: string
+          phone: string | null
+          updated_at: string
+          weekly_allowance_cents: number
         }
         Insert: {
-          amount: number
+          connector_key_hash?: string | null
           created_at?: string
-          decided_at?: string | null
-          description?: string | null
-          envelope_id: string
-          id?: string
-          merchant?: string | null
-          status?: string
-          url?: string | null
-          user_id: string
+          id: string
+          phone?: string | null
+          updated_at?: string
+          weekly_allowance_cents?: number
         }
         Update: {
-          amount?: number
+          connector_key_hash?: string | null
           created_at?: string
-          decided_at?: string | null
-          description?: string | null
-          envelope_id?: string
           id?: string
-          merchant?: string | null
-          status?: string
-          url?: string | null
-          user_id?: string
+          phone?: string | null
+          updated_at?: string
+          weekly_allowance_cents?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "requests_envelope_id_fkey"
-            columns: ["envelope_id"]
-            isOneToOne: false
-            referencedRelation: "envelopes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "requests_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       setups: {
         Row: {
@@ -152,36 +120,90 @@ export type Database = {
         }
         Relationships: []
       }
-      users: {
+      spend_requests: {
         Row: {
-          connector_key: string
+          amount_cents: number
           created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          description: string | null
+          envelope_id: number
+          expires_at: string
           id: string
-          phone: string
-          weekly_budget: number
+          merchant: string
+          over_by_cents: number
+          reason: string
+          status: string
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          connector_key: string
+          amount_cents: number
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          description?: string | null
+          envelope_id: number
+          expires_at?: string
           id?: string
-          phone: string
-          weekly_budget: number
+          merchant: string
+          over_by_cents?: number
+          reason: string
+          status?: string
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          connector_key?: string
+          amount_cents?: number
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          description?: string | null
+          envelope_id?: number
+          expires_at?: string
           id?: string
-          phone?: string
-          weekly_budget?: number
+          merchant?: string
+          over_by_cents?: number
+          reason?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "spend_requests_envelope_id_fkey"
+            columns: ["envelope_id"]
+            isOneToOne: false
+            referencedRelation: "envelopes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_budget: { Args: { p_key: string }; Returns: Json }
+      get_status: {
+        Args: { p_key: string; p_request_id: string }
+        Returns: Json
+      }
+      request_spend: {
+        Args: {
+          p_amount_cents: number
+          p_category: string
+          p_description?: string
+          p_key: string
+          p_merchant: string
+        }
+        Returns: Json
+      }
+      resolve_reply: {
+        Args: { p_phone: string; p_reply: string }
+        Returns: Json
+      }
+      rotate_connector_key: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
