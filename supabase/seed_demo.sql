@@ -1,14 +1,25 @@
--- Demo user for the MCP server (connector link .../mcp/demo). Idempotent.
+-- Demo user: Software envelope $75/week, auto-approve under $10, weekly allowance $200. Idempotent.
 -- Run: npx supabase db query --linked -f supabase/seed_demo.sql
--- Replace the phone with the number that receives the demo texts (verified on the Twilio trial account).
+-- Replace the phone (digits only, as auth.users stores it) with the number that receives the demo texts.
+-- The connector key is never committed: set it with
+--   update public.profiles set connector_key_hash = private.hash_key('<key>') where id = '00000000-0000-4000-8000-00000000de30';
 
-with u as (
-  insert into public.users (phone, connector_key, weekly_budget)
-  values ('+15555550100', 'demo', 75)
-  on conflict (connector_key) do update set phone = excluded.phone
-  returning id
+insert into auth.users (
+  instance_id, id, aud, role, phone, phone_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  phone_change, phone_change_token, email_change_token_current, reauthentication_token
 )
-insert into public.envelopes (user_id, category, weekly_limit, auto_approve_under)
-select id, 'Software', 75, 10 from u
-on conflict (user_id, lower(category)) do update
-  set weekly_limit = excluded.weekly_limit, auto_approve_under = excluded.auto_approve_under;
+values (
+  '00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-00000000de30',
+  'authenticated', 'authenticated', '15555550100', now(),
+  '{"provider": "phone", "providers": ["phone"]}', '{}', now(), now(),
+  '', '', '', '', '', '', '', ''
+)
+on conflict (id) do update set phone = excluded.phone, phone_confirmed_at = now();
+
+update public.envelopes set weekly_limit_cents = 7500, auto_approve_under_cents = 1000
+where user_id = '00000000-0000-4000-8000-00000000de30' and category = 'software';
+
+update public.profiles set weekly_allowance_cents = 20000
+where id = '00000000-0000-4000-8000-00000000de30';
