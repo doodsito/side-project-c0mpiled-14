@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from decimal import Decimal
 
 from dotenv import load_dotenv
 from fastmcp import FastMCP
@@ -12,7 +12,6 @@ load_dotenv()
 
 mcp = FastMCP("Wallie")
 
-CATEGORIES = ("food", "travel", "shopping", "software")
 POLL_SECONDS = 1
 POLL_TIMEOUT = 25
 
@@ -21,67 +20,62 @@ def connector_key() -> str:
     return get_http_request().headers.get("x-wallie-key", "")
 
 
-def _dollars(cents) -> float:
-    return round((cents or 0) / 100, 2)
+def _money(value) -> float:
+    return float(round(Decimal(str(value or 0)), 2))
 
 
-def _cents(amount: float) -> int:
-    return int(round(amount * 100))
+def _clock(value) -> str:
+    return value.astimezone().strftime("%H:%M") if value else ""
 
 
-def _clock(iso: str | None) -> str:
-    if not iso:
-        return ""
-    return datetime.fromisoformat(iso).astimezone().strftime("%H:%M")
-
-
-def _request_out(raw: dict) -> dict:
+def _request_out(row: dict) -> dict:
     return {
-        "request_id": raw["request_id"],
-        "status": raw["status"],
-        "amount": _dollars(raw["amount_cents"]),
-        "category": raw["category"],
-        "merchant": raw["merchant"],
-        "remaining": _dollars(raw["envelope_remaining_cents"]),
-        "over_by": _dollars(raw["over_by_cents"]) or None,
-        "created_at": raw["created_at"],
-        "decided_at": raw["decided_at"],
-        "expires_at": raw["expires_at"],
+        "request_id": str(row["id"]),
+        "status": row["status"],
+        "amount": _money(row["amount"]),
+        "category": row["category"],
+        "merchant": row["merchant"],
+        "url": row["url"],
+        "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+        "decided_at": row["decided_at"].isoformat() if row["decided_at"] else None,
+        "expires_at": row["expires_at"].isoformat() if row["expires_at"] else None,
     }
 
 
 @mcp.tool
 async def check_budget(category: str | None = None, amount: float | None = None) -> dict:
-    """Check the user's Wallie spending allowance (test dollars). Returns each budget category with its weekly limit, spent in the last 7 days, remaining, and the auto-approve threshold. Pass an amount (and category) to preview whether a purchase would be auto-approved, need the user's text approval, or be over budget. Use the exact category names returned here when calling request_spend."""
+    """Check the user's Wallie spending allowance (test dollars). Returns each budget category with its weekly limit, spent in the last 7 days, reserved by pending requests, remaining, and the auto-approve threshold. Pass an amount (and category) to preview whether a purchase would be auto-approved, need the user's text approval, or be over budget. Use the exact category names returned here when calling request_spend."""
     try:
-        raw = await db.check_budget(connector_key())
-    except db.RpcError as exc:
+        data = await db.budget(connector_key())
+    except db.DbError as exc:
         return {"status": "error", "message": exc.message}
 
     categories = [
         {
             "category": e["category"],
-            "weekly_limit": _dollars(e["weekly_limit_cents"]),
-            "spent": _dollars(e["spent_cents"]),
-            "remaining": _dollars(e["remaining_cents"]),
-            "auto_approve_under": _dollars(e["auto_approve_under_cents"]),
+            "weekly_limit": _money(e["weekly_limit"]),
+            "spent": _money(e["spent"]),
+            "reserved": _money(e["reserved"]),
+            "remaining": _money(e["weekly_limit"] - e["spent"] - e["reserved"]),
+            "auto_approve_under": _money(e["auto_approve_under"]),
         }
-        for e in (raw["envelopes"] or [])
+        for e in data["envelopes"]
     ]
 
     out = {
         "categories": categories,
-        "weekly_budget": _dollars(raw["weekly_allowance_cents"]),
-        "weekly_remaining": _dollars(raw["total_remaining_cents"]),
-        "has_pending_request": raw["has_pending"],
+        "weekly_budget": _money(data["user"]["weekly_budget"]),
+        "pending_request": _request_out(data["pending"]) if data["pending"] else None,
     }
 
     if amount is not None and category is not None:
-        match = next((c for c in categories if c["category"] == category.strip().lower()), None)
+        wanted = category.strip().lower()
+        match = next((c for c in categories if c["category"].strip().lower() == wanted), None)
         if match is None:
+            names = ", ".join(c["category"] for c in categories) or "none yet"
             out["preview"] = {
                 "outcome": "error",
-                "message": f"Unknown category. Use one of: {', '.join(CATEGORIES)}.",
+                "message": f"No budget category called '{category}'. Use one of: {names}.",
             }
         elif amount > match["remaining"]:
             out["preview"] = {
@@ -108,87 +102,84 @@ async def request_spend(
     if amount is None or amount <= 0:
         return {"status": "error", "message": "Amount must be greater than zero."}
 
-    key = connector_key()
+    money = Decimal(str(amount)).quantize(Decimal("0.01"))
     try:
-        raw = await db.request_spend(
-            key, _cents(amount), category.strip().lower(), merchant, description
+        result = await db.create_request(
+            connector_key(), money, category, merchant, description, url
         )
-    except db.RpcError as exc:
+    except db.DbError as exc:
         return {"status": "error", "message": exc.message}
 
-    if raw.get("decision") == "blocked":
-        return await _blocked_response(key, raw["pending_request_id"], amount, merchant)
+    row = result["request"]
+    out = _request_out(row)
 
-    out = _request_out(raw)
-    if raw["decision"] == "approved":
-        out["status"] = "approved"
+    if result["outcome"] == "busy":
+        out["status"] = "busy"
         out["message"] = (
-            f"Approved automatically ({out['amount']:.2f} is under the "
-            f"{out['category']} auto-approve limit). Share the link with the user; "
-            "they complete the purchase themselves."
+            f"Another purchase is waiting for the user's approval: ${out['amount']:.2f} at "
+            f"{out['merchant']} ({out['category']}), sent {_clock(row['created_at'])}. "
+            "Wallie allows one purchase at a time. Tell the user and do not retry until it is "
+            f"approved, declined, or expires at {_clock(row['expires_at'])}."
         )
         return out
 
+    if result["outcome"] == "idempotent":
+        out["status"] = "pending"
+        out["message"] = (
+            f"This exact request is already waiting for the user's approval (sent "
+            f"{_clock(row['created_at'])}, expires {_clock(row['expires_at'])}). Call get_status "
+            f"with request_id {out['request_id']}; do not create another request."
+        )
+        return out
+
+    if result["outcome"] == "auto_approve":
+        out["status"] = "approved"
+        out["remaining"] = _money(result["remaining"] - row["amount"])
+        out["message"] = (
+            f"Approved automatically: ${out['amount']:.2f} is under the {out['category']} "
+            f"auto-approve limit. ${out['remaining']:.2f} left in {out['category']} this week. "
+            "Share the link with the user; they complete the purchase themselves."
+        )
+        return out
+
+    # pending: over_budget or needs_approval
+    over_by = result["over_by"]
     sent = await notify.send_approval_text(
         {
-            "request_id": raw["request_id"],
-            "phone": raw["phone"],
-            "kind": "over_budget" if raw["over_by_cents"] else "approval",
-            "amount": _dollars(raw["amount_cents"]),
-            "category": raw["category"],
-            "merchant": raw["merchant"],
-            "description": raw["description"],
-            "url": url,
-            "remaining": _dollars(raw["envelope_remaining_cents"]),
-            "over_by": _dollars(raw["over_by_cents"]) or None,
+            "request_id": out["request_id"],
+            "phone": result["user"]["phone"],
+            "kind": "over_budget" if over_by else "approval",
+            "amount": out["amount"],
+            "category": out["category"],
+            "merchant": out["merchant"],
+            "description": row["description"],
+            "url": out["url"],
+            "remaining": _money(result["remaining"]),
+            "over_by": _money(over_by) if over_by else None,
         }
     )
 
     if not sent:
+        # D4: the text failed, so nobody can approve it. Release the lock.
+        await db.expire_request(out["request_id"])
         return {
             "status": "error",
-            "request_id": raw["request_id"],
-            "message": "Wallie could not send the approval text. Tell the user, then try request_spend again.",
+            "message": "Wallie could not send the approval text, so the request was cancelled. "
+            "Tell the user, then try request_spend again.",
         }
 
     out["status"] = "pending"
-    over = f" It is over budget by ${out['over_by']:.2f}." if out["over_by"] else ""
+    out["remaining"] = _money(result["remaining"])
+    if over_by:
+        out["over_by"] = _money(over_by)
+        detail = f"It is over the {out['category']} budget by ${out['over_by']:.2f}. "
+    else:
+        detail = f"${out['remaining']:.2f} left in {out['category']} this week. "
     out["message"] = (
-        f"Wallie texted the user to approve ${out['amount']:.2f} at {out['merchant']}.{over} "
+        f"Wallie texted the user to approve ${out['amount']:.2f} at {out['merchant']}. {detail}"
         f"Tell the user to reply Y or N, then call get_status with request_id "
         f"{out['request_id']} until it is no longer pending. It expires at "
-        f"{_clock(out['expires_at'])}."
-    )
-    return out
-
-
-async def _blocked_response(key: str, pending_id: str, amount: float, merchant: str) -> dict:
-    """D8: an identical retry gets the existing request back; anything else is busy."""
-    try:
-        pending = await db.get_status(key, pending_id)
-    except db.RpcError as exc:
-        return {"status": "error", "message": exc.message}
-
-    same = (
-        pending["amount_cents"] == _cents(amount)
-        and (pending["merchant"] or "").strip().lower() == merchant.strip().lower()
-    )
-    out = _request_out(pending)
-    if same:
-        out["status"] = "pending"
-        out["message"] = (
-            f"This request is already waiting for the user's approval (sent "
-            f"{_clock(pending['created_at'])}, expires {_clock(pending['expires_at'])}). "
-            f"Call get_status with request_id {out['request_id']}; do not create a new request."
-        )
-        return out
-
-    out["status"] = "busy"
-    out["message"] = (
-        f"Another purchase is waiting for the user's approval: ${out['amount']:.2f} at "
-        f"{out['merchant']} ({out['category']}), sent {_clock(pending['created_at'])}. "
-        "Wallie allows one purchase at a time. Tell the user and do not retry until it is "
-        f"approved, declined, or expires at {_clock(pending['expires_at'])}."
+        f"{_clock(row['expires_at'])}."
     )
     return out
 
@@ -197,30 +188,27 @@ async def _blocked_response(key: str, pending_id: str, amount: float, merchant: 
 async def get_status(request_id: str | None = None) -> dict:
     """Check a Wallie spend request. Waits up to about 25 seconds for the user's text reply before returning. If still "pending", tell the user you're still waiting for their reply, then call get_status again. "approved" -> confirm and share the purchase link. "declined" or "expired" -> do not buy and tell the user."""
     key = connector_key()
-
-    if request_id is None:
-        try:
-            request_id = await db.latest_request_id(key)
-        except db.RpcError as exc:
-            return {"status": "error", "message": exc.message}
-        if request_id is None:
-            return {
-                "status": "error",
-                "message": "Wallie has no spend requests for this user yet. Call request_spend first.",
-            }
-
     deadline = asyncio.get_running_loop().time() + POLL_TIMEOUT
+
     while True:
         try:
-            raw = await db.get_status(key, request_id)
-        except db.RpcError as exc:
+            row = await db.read_request(key, request_id)
+        except db.DbError as exc:
             return {"status": "error", "message": exc.message}
 
-        if raw["status"] != "pending" or asyncio.get_running_loop().time() >= deadline:
+        if row is None:
+            return {
+                "status": "error",
+                "message": "Wallie has no such spend request. Call request_spend first."
+                if request_id
+                else "Wallie has no spend requests for this user yet. Call request_spend first.",
+            }
+
+        if row["status"] != "pending" or asyncio.get_running_loop().time() >= deadline:
             break
         await asyncio.sleep(POLL_SECONDS)
 
-    out = _request_out(raw)
+    out = _request_out(row)
     out["message"] = {
         "approved": "Approved. Share the purchase link with the user; they complete the purchase themselves.",
         "declined": "The user declined. Do not buy it; tell the user.",

@@ -1,0 +1,17 @@
+# Optional local Postgres for offline development, so you can run Wallie without
+# the team's Supabase credentials. Start it with:  docker compose up -d
+# Then in .env:  DATABASE_URL=postgresql://postgres:wallie@localhost:5433/wallie
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: wallie-pg
+    environment:
+      POSTGRES_PASSWORD: wallie
+      POSTGRES_DB: wallie
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

@@ -2,7 +2,7 @@
 
 Source: team Claude Doc (pasted by user 2026-10-17). This is a copy; the doc is the source of truth if they differ.
 
-**Changes agreed since the doc (2026-10-17):** only one purchase may be in flight per user (concurrency lock). Categories were briefly floated as free text but reverted 14:20 to match Person 2's already-merged schema — they're the fixed four below, auto-created per user. Integration details per team: `docs/TEAM-CONTRACT.md`.
+**Changes agreed since the doc (2026-10-17):** envelope categories are free text, user-defined (food/travel/shopping/software are examples, not a fixed set). Only one purchase may be in flight per user (concurrency lock). Integration details per team: `docs/TEAM-CONTRACT.md`. The MCP server also gained a `requests.url` column so Claude can share a purchase link after approval.
 
 ## Product summary
 
@@ -95,6 +95,6 @@ Tester question: "What would you trust Claude to buy for you?"
 - [ ] Twilio number live
 - [ ] Landing + setup live
 - [ ] MCP connected in Claude app
-- [ ] MCP connected in Claude Code
+- [x] MCP connected in Claude Code
 - [ ] Demo recorded
 - [ ] Sent to 5 testers

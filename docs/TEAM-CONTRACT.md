@@ -5,36 +5,34 @@ What each team needs to build against so the pieces connect at integration. Time
 ## Hosting (everyone)
 
 - The Claude app reaches the MCP server from Anthropic's cloud, so the server must be on a public HTTPS URL. `localhost` only works for Claude Code.
-- The MCP server runs on Person 4's laptop behind an ngrok static domain, so the URL stays the same across restarts. Railway is the fallback.
+- The MCP server runs behind an ngrok static domain for the demo, so the URL stays the same across restarts. Railway is the fallback. It is not tied to one machine: `mcp-server/README.md` sets it up from a clean clone on macOS, Linux or Windows, and `scripts/init_db.py` can create the schema and a demo user against any database, so anyone on the team can run it.
 - Person 3's Twilio reply webhook also needs a public HTTPS URL. If you don't have one, tell Person 4.
 
 ## Person 1: setup and Connect Claude screen
 
 - **Connector link:** `{MCP_BASE_URL}/mcp/{connector_key}`. Read `MCP_BASE_URL` from an env var. The real value arrives around 15:10.
-- **connector_key:** generated server-side by the DB's `rotate_connector_key()` RPC (`wk_` + 48 hex chars), shown once, stored only as a hash. Call it right after the user is created and show the result as their connector link; it is the only auth, so it must not be guessable.
+- **connector_key:** random and URL-safe, at least 22 characters (`crypto.randomUUID()` or `secrets.token_urlsafe(16)`). Generate it when the user is created and store it in `users.connector_key`. It is the only auth, so it must not be guessable. The column enforces `^[A-Za-z0-9_-]+$`, so no other characters.
 - **Claude Code command:** the spec's version is missing a flag. Without `--transport http`, Claude Code tries to run the link as a program. Use:
   `claude mcp add --transport http wallie {link}`
 - **Claude app:** Settings → Connectors → Add custom connector → paste the link.
-- **Correction (14:20): categories are the fixed four, not free text.** Person 2's schema constrains `envelopes.category` to exactly `food, travel, shopping, software` and creates all four automatically when a user signs up (an `auth.users` insert trigger). If your setup screen has free-text category input, change it to editing the limits on those 4 existing rows — don't create or name new envelopes.
+- **Categories are free text** chosen by the user; the four in the spec are examples. Don't allow two envelopes with the same name (case-insensitive) for one user — a unique index enforces it. Category names are trimmed, 1-50 characters.
+- **Ignore my 14:20 note that said categories were the fixed four.** The schema went back and forth; as of 15:00 the merged schema on `main` is free text and the MCP server matches it. Sorry for the churn.
 - **Phone numbers** go in E.164 format (`+15105551234`) so they match Twilio's `From`.
 
-## Person 2: database (superseded 14:20 — schema already merged, see below)
+## Person 2: database
 
-The section below is what the original plan asked for. Person 2 has already shipped something more complete (`supabase/migrations/`, `supabase/README.md`): `profiles`/`envelopes`/`spend_requests` tables plus `check_budget`/`request_spend`/`get_status`/`resolve_reply` RPCs that do the budget math and the one-pending-per-user lock in SQL. The MCP server calls those RPCs directly instead of re-deriving this logic. Two asks that are still open:
+The merged schema on `main` (`supabase/migrations/20261017211932_align_with_team_contract.sql`) is what the MCP server is built against and tested on: `users` / `envelopes` / `requests`, numeric dollars, free-text categories, the `url` column, and both unique indexes. **Please don't swap it again** — `fix/restore-rpc-schema` would break the working server. If something in it must change, tell me first.
 
-- **DATABASE_URL:** send Person 4 the Postgres connection string privately (Supabase → Connect → Session pooler, project `ucsysxhiydfgukkkbtdx`).
-- **Demo user:** since users (and their 4 envelopes) are only created via an `auth.users` insert trigger, please create one for the demo (phone = whoever receives the demo texts), set its Software envelope to `weekly_limit_cents 7500` / `auto_approve_under_cents 1000`, and run `rotate_connector_key()` for it — send Person 4 the resulting key.
-- No longer needed: the `url text` column and the two unique indexes below — `spend_requests` already has an equivalent unique index, and envelope names are the fixed four so no per-category index is needed.
+What I still need:
 
-<details><summary>Original ask (superseded)</summary>
+- **DATABASE_URL:** the Postgres connection string, sent privately (Supabase -> Connect -> Session pooler). It must be the `postgres` user: RLS is on with no policies, so the publishable key can't reach the tables.
+- **Confirm the demo seed is applied** to the real project (`supabase/seed_demo.sql`) with the phone that receives the demo texts, and tell me the connector key if it isn't `demo`.
 
-```sql
-alter table requests add column url text;
-create unique index one_pending_per_user on requests (user_id) where status = 'pending';
-create unique index one_envelope_per_category on envelopes (user_id, lower(category));
-```
+Budget definitions the server uses (please match them in the UI so the numbers agree):
 
-</details>
+- spent = sum of `approved` requests with `created_at` in the last 7 days
+- reserved = sum of `pending` requests
+- remaining = `weekly_limit` - spent - reserved
 
 ## Person 3: texting
 
