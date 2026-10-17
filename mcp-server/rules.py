@@ -1,3 +1,11 @@
+"""The approval rules, as a pure reference implementation.
+
+NOTE: the server does not call this at runtime. Person 2's `request_spend` RPC makes
+the decision in SQL (see supabase/migrations/). This module is kept as the executable
+statement of what those rules are, and tests/test_rules.py checks the SQL agrees with
+it whenever DATABASE_URL is set — so the two cannot drift apart unnoticed.
+"""
+
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 

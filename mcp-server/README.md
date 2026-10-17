@@ -42,8 +42,9 @@ cp .env.example .env
 Fill in `DATABASE_URL`. Pick whichever applies:
 
 **A. The team's Supabase project** (what the demo uses). Supabase dashboard → Connect →
-Session pooler → copy the URI. It must be the `postgres` user: the tables have RLS on
-with no policies, so the publishable/anon key cannot reach them.
+Session pooler → copy the URI. It must be the `postgres` / `service_role` user: the
+RPCs and tables are granted to `service_role` only, so the publishable/anon key gets
+"permission denied".
 
 ```
 DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
@@ -64,13 +65,18 @@ docker compose up -d
 Now create the schema and a demo user:
 
 ```sh
-uv run python scripts/init_db.py
+uv run python scripts/init_db.py                 # fresh local database
+uv run python scripts/init_db.py --seed-only     # the team's Supabase, schema already there
 ```
 
-Against a fresh local database that creates everything. Against Supabase, where the
-schema already exists, it just adds the demo user. Defaults to connector key `demo`
-with a `Software` envelope of $75/week, auto-approving under $10 — the demo setup.
-Override with `--key`, `--phone`, `--category`, `--limit`, `--auto`.
+On a fresh local database this applies `sql/local_dev_shim.sql` — the pieces Supabase
+provides (the `auth` schema, pgcrypto, the `anon`/`authenticated`/`service_role` roles)
+— and then the real migration from `supabase/migrations/`, unchanged. The schema's
+single source of truth stays in `supabase/`; nothing is duplicated here.
+
+Defaults to connector key `demo`, a $200/week allowance and a `software` envelope of
+$75/week auto-approving under $10 — the demo setup. Override with `--key`, `--phone`,
+`--category`, `--allowance`, `--limit`, `--auto`.
 
 ## 3. Run it
 
@@ -123,7 +129,7 @@ service's webhook.
 ## Checking it works
 
 ```sh
-uv run pytest                           # approval-rule unit tests, no database needed
+uv run pytest                           # approval rules + SQL parity (parity needs a database)
 uv run python scripts/smoke.py          # full path: $5 auto-approve, $29 pending, busy, idempotent retry
 uv run python scripts/race.py           # two concurrent requests -> exactly one pending, one busy
 uv run python scripts/reset_demo.py     # clear the demo user's requests to rerun
@@ -134,7 +140,9 @@ base URL: `uv run python scripts/smoke.py mykey https://my-domain.ngrok-free.app
 
 ## How it decides
 
-`rules.py`, pure and unit-tested:
+The decision is made in SQL by the `request_spend` RPC. `rules.py` is the same logic as
+a pure reference implementation, and `tests/test_sql_parity.py` asserts the two agree
+whenever a database is configured, so they cannot drift apart unnoticed.
 
 | Situation | Result |
 | --- | --- |
@@ -142,30 +150,35 @@ base URL: `uv run python scripts/smoke.py mykey https://my-domain.ngrok-free.app
 | Strictly below the envelope's auto-approve amount | `approved` immediately |
 | Anything else in budget | `pending` + an approval text |
 
-Remaining is `weekly_limit − spent − reserved`, where spent is approved requests from
-the last 7 days (rolling, no reset job) and reserved is the pending one. A $10 purchase
-with auto-approve under $10 needs a text — the comparison is strict.
+Remaining is `weekly_limit − spent`, where spent is approved requests from the last 7
+days (rolling, no reset job); the amount is checked against both the envelope's limit
+and the account's weekly allowance. A $10 purchase with auto-approve under $10 needs a
+text — the comparison is strict.
+
+Money is integer cents in the database. The tools speak dollars, converting at the
+boundary. Categories are the fixed four — `food`, `travel`, `shopping`, `software` —
+created for every user; matching is case-insensitive and trimmed.
 
 **One purchase in flight per user.** A pending request *is* the lock, and its
 `request_id` is the key the requesting agent holds. While it exists, any other
 `request_spend` for that user returns `busy`, even for amounts that would otherwise be
 auto-approved; the exception is a retry with the same amount and merchant, which gets
-the existing request back instead. Two layers enforce it: `create_request` holds a
-`select ... for update` row lock on the user for its whole transaction, and a partial
-unique index (`one_pending_per_user`) is the backstop. The lock releases on Y, N, or the
-10-minute expiry, which is applied lazily by whichever code path next touches the row —
-there is no cron.
+the existing request back instead. Two layers enforce it: the RPC takes a `for update`
+row lock on the user's profile for its whole transaction, and a partial unique index
+(`spend_requests_one_pending_idx`) is the backstop. The lock releases on Y, N, or the
+10-minute expiry, which is applied lazily by whichever RPC next touches the row — there
+is no cron.
 
 ## Layout
 
 ```
 server.py            the three MCP tools + KeyFromPath middleware
-rules.py             pure decide(); the approval rules
-db.py                psycopg pool, the atomic check-and-insert, lazy expiry
+rules.py             reference implementation of the rules (not called at runtime)
+db.py                psycopg pool; calls the RPCs, plus the few reads that have none
 notify.py            POSTs the approval to Person 3, or prints it in dev
-sql/                 schema mirror for plain Postgres (source of truth: supabase/migrations/)
+sql/                 local_dev_shim.sql: what Supabase provides, for a plain Postgres
 scripts/             init_db, smoke, race, reply, reset_demo, dev.sh
-tests/               approval-rule tests
+tests/               approval rules + SQL parity
 PLAN.md              build plan, decisions and running log
 ```
 
