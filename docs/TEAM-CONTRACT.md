@@ -11,32 +11,30 @@ What each team needs to build against so the pieces connect at integration. Time
 ## Person 1: setup and Connect Claude screen
 
 - **Connector link:** `{MCP_BASE_URL}/mcp/{connector_key}`. Read `MCP_BASE_URL` from an env var. The real value arrives around 15:10.
-- **connector_key:** random and URL-safe, at least 22 characters (`crypto.randomUUID()` or `secrets.token_urlsafe(16)`). Generate it when the user is created. It is the only auth, so it must not be guessable.
+- **connector_key:** generated server-side by the DB's `rotate_connector_key()` RPC (`wk_` + 48 hex chars), shown once, stored only as a hash. Call it right after the user is created and show the result as their connector link; it is the only auth, so it must not be guessable.
 - **Claude Code command:** the spec's version is missing a flag. Without `--transport http`, Claude Code tries to run the link as a program. Use:
   `claude mcp add --transport http wallie {link}`
 - **Claude app:** Settings → Connectors → Add custom connector → paste the link.
-- **Categories are free text** chosen by the user; the four in the spec are examples. Don't allow two envelopes with the same name (case-insensitive) for one user.
+- **Correction (14:20): categories are the fixed four, not free text.** Person 2's schema constrains `envelopes.category` to exactly `food, travel, shopping, software` and creates all four automatically when a user signs up (an `auth.users` insert trigger). If your setup screen has free-text category input, change it to editing the limits on those 4 existing rows — don't create or name new envelopes.
 - **Phone numbers** go in E.164 format (`+15105551234`) so they match Twilio's `From`.
 
-## Person 2: database
+## Person 2: database (superseded 14:20 — schema already merged, see below)
 
-- Please run:
+The section below is what the original plan asked for. Person 2 has already shipped something more complete (`supabase/migrations/`, `supabase/README.md`): `profiles`/`envelopes`/`spend_requests` tables plus `check_budget`/`request_spend`/`get_status`/`resolve_reply` RPCs that do the budget math and the one-pending-per-user lock in SQL. The MCP server calls those RPCs directly instead of re-deriving this logic. Two asks that are still open:
 
-  ```sql
-  alter table requests add column url text;
-  create unique index one_pending_per_user on requests (user_id) where status = 'pending';
-  create unique index one_envelope_per_category on envelopes (user_id, lower(category));
-  ```
+- **DATABASE_URL:** send Person 4 the Postgres connection string privately (Supabase → Connect → Session pooler, project `ucsysxhiydfgukkkbtdx`).
+- **Demo user:** since users (and their 4 envelopes) are only created via an `auth.users` insert trigger, please create one for the demo (phone = whoever receives the demo texts), set its Software envelope to `weekly_limit_cents 7500` / `auto_approve_under_cents 1000`, and run `rotate_connector_key()` for it — send Person 4 the resulting key.
+- No longer needed: the `url text` column and the two unique indexes below — `spend_requests` already has an equivalent unique index, and envelope names are the fixed four so no per-category index is needed.
 
-- Send Person 4 the Postgres connection string privately (Supabase → Connect → Session pooler). The MCP server talks to Postgres directly so it can use transactions.
-- Budget definitions the server uses (please use the same in the UI so numbers match):
-  - spent = sum of `approved` requests with `created_at` in the last 7 days
-  - reserved = sum of `pending` requests
-  - remaining = `weekly_limit` − spent − reserved
-- Seed a demo user:
-  - `phone`: whoever receives the demo texts
-  - `connector_key`: `demo`
-  - one envelope: `Software`, `weekly_limit` 75, `auto_approve_under` 10
+<details><summary>Original ask (superseded)</summary>
+
+```sql
+alter table requests add column url text;
+create unique index one_pending_per_user on requests (user_id) where status = 'pending';
+create unique index one_envelope_per_category on envelopes (user_id, lower(category));
+```
+
+</details>
 
 ## Person 3: texting
 
