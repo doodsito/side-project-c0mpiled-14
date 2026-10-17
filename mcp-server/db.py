@@ -1,4 +1,4 @@
-"""Adapter over the Postgres RPCs owned by Person 2.
+"""Adapter over the Postgres RPCs owned by the database person.
 
 Schema + contract: supabase/migrations/20261017214205_restore_rpc_schema.sql and
 supabase/README.md. The budget math, the approval decision and the
@@ -95,7 +95,7 @@ async def get_status(key: str, request_id: str) -> dict:
 
 
 async def resolve_reply(phone: str, reply: str) -> dict:
-    """Person 3 owns this in production; scripts/reply.py uses it in dev."""
+    """the SMS person owns this in production; scripts/reply.py uses it in dev."""
     return await _call("select public.resolve_reply(%s, %s)", (phone, reply))
 
 

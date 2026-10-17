@@ -122,7 +122,7 @@ you reply on the user's behalf:
 uv run python scripts/reply.py y      # or n
 ```
 
-With `NOTIFY_URL` and `NOTIFY_SECRET` set, the server POSTs the approval to Person 3's
+With `NOTIFY_URL` and `NOTIFY_SECRET` set, the server POSTs the approval to the SMS person's
 service, which sends the real SMS; the user's Y/N reply comes back through that
 service's webhook.
 
@@ -175,7 +175,7 @@ is no cron.
 server.py            the three MCP tools + KeyFromPath middleware
 rules.py             reference implementation of the rules (not called at runtime)
 db.py                psycopg pool; calls the RPCs, plus the few reads that have none
-notify.py            POSTs the approval to Person 3, or prints it in dev
+notify.py            POSTs the approval to the SMS person, or prints it in dev
 sql/                 local_dev_shim.sql: what Supabase provides, for a plain Postgres
 scripts/             init_db, smoke, race, reply, reset_demo, dev.sh
 tests/               approval rules + SQL parity

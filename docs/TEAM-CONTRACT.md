@@ -1,4 +1,4 @@
-# Wallie: MCP server integration notes (from Person 4)
+# Wallie: MCP server integration notes (from the MCP server person)
 
 What each team needs to build against so the pieces connect at integration. Times are PDT, 2026-10-17.
 
@@ -6,9 +6,9 @@ What each team needs to build against so the pieces connect at integration. Time
 
 - The Claude app reaches the MCP server from Anthropic's cloud, so the server must be on a public HTTPS URL. `localhost` only works for Claude Code.
 - The MCP server runs behind an ngrok static domain for the demo, so the URL stays the same across restarts. Railway is the fallback. It is not tied to one machine: `mcp-server/README.md` sets it up from a clean clone on macOS, Linux or Windows, and `scripts/init_db.py` can create the schema and a demo user against any database, so anyone on the team can run it.
-- Person 3's Twilio reply webhook also needs a public HTTPS URL. If you don't have one, tell Person 4.
+- The SMS person's Twilio reply webhook also needs a public HTTPS URL. If you don't have one, let me know.
 
-## Person 1: setup and Connect Claude screen
+## The website person: setup and Connect Claude screen
 
 - **Connector link:** `{MCP_BASE_URL}/mcp/{connector_key}`. Read `MCP_BASE_URL` from an env var. The real value arrives around 15:10.
 - **connector_key:** don't generate it yourself. Call the DB's `rotate_connector_key()` RPC as the signed-in user; it returns the key once (`wk_` + 48 hex) and stores only a sha256 hash. Show it on the Connect screen and warn that it won't be shown again. It is the only auth, so it must not be guessable or shared.
@@ -20,7 +20,7 @@ What each team needs to build against so the pieces connect at integration. Time
 - **Phone verification is Supabase Phone OTP** (`signInWithOtp` then `verifyOtp`), with Twilio as the SMS provider — profiles and envelopes are created by a trigger on signup, so don't insert them yourself.
 - **Phone numbers** go in E.164 format (`+15105551234`) so they match Twilio's `From`.
 
-## Person 2: database
+## The database person
 
 **The RPC schema (`20261017214205_restore_rpc_schema.sql`) is what the MCP server now runs on, and it is verified working end to end.** The schema changed three times between 14:14 and 15:20 and each flip broke one side of the integration, so: **this is frozen. No more schema swaps before the demo.** If something genuinely must change, message me first and we change it together.
 
@@ -32,7 +32,7 @@ What I still need:
 - **Confirm `supabase/seed_demo.sql` is applied** with the phone that receives the demo texts, and send me the connector key you set (the seed deliberately doesn't commit one).
 - **Nice to have if there's time:** `alter table public.spend_requests add column url text;` so an approved purchase link survives into `get_status`. Not demo-blocking.
 
-## Person 3: texting
+## The SMS person: texting
 
 - **Outgoing text.** When a purchase needs approval, the MCP server saves it as `pending`, then calls you:
   - Request: `POST {NOTIFY_URL}` with header `x-wallie-secret: {NOTIFY_SECRET}` and JSON:
@@ -54,7 +54,7 @@ What I still need:
   - Older than 10 minutes: set it to `expired` and reply "That request expired."
   - Otherwise update with `where id = ... and status = 'pending'`: Y sets `approved`, N sets `declined`, and both set `decided_at = now()`. The `status = 'pending'` condition stops a reply and an expiry from colliding.
   - Nothing pending: reply "Nothing is waiting for approval."
-- **What Person 4 needs:** `NOTIFY_URL` and `NOTIFY_SECRET` by around 15:15.
+- **What I need from you:** `NOTIFY_URL` and `NOTIFY_SECRET` by around 15:15.
 - **Twilio trial accounts** can only text verified numbers, so verify the demo phone.
 
 ## Concurrency: one purchase at a time per user

@@ -1,4 +1,4 @@
-"""Hands an approval text to Person 3's service, or prints it in dev."""
+"""Hands an approval text to the SMS person's service, or prints it in dev."""
 
 import os
 

@@ -22,10 +22,10 @@ Four builders work in parallel once the shared contract below is locked. Patrick
 
 | Owner | Area | Deliverables |
 | --- | --- | --- |
-| Person 1 | Landing page + setup | Landing page (headline, text-thread hero, how it works, Set up Wallie button). 4 setup screens: verify phone, weekly allowance, envelopes, connect Claude. Writes to Supabase. |
-| Person 2 | Database | Supabase tables, budget math (last 7 days spent + reserved), per-user connector key. Shares schema in first 15 min. |
-| Person 3 | Texting | Twilio phone verification, approval texts, Y/N reply webhook, over-budget texts, 10-min expiry. |
-| **Person 4 (us)** | **MCP server** | **check_budget, request_spend, get_status. Approval rules. Test in Claude app and Claude Code.** |
+| The website person | Landing page + setup | Landing page (headline, text-thread hero, how it works, Set up Wallie button). 4 setup screens: verify phone, weekly allowance, envelopes, connect Claude. Writes to Supabase. |
+| The database person | Database | Supabase tables, budget math (last 7 days spent + reserved), per-user connector key. Shares schema in first 15 min. |
+| The SMS person | Texting | Twilio phone verification, approval texts, Y/N reply webhook, over-budget texts, 10-min expiry. |
+| **The MCP server person (us)** | **MCP server** | **check_budget, request_spend, get_status. Approval rules. Test in Claude app and Claude Code.** |
 
 Landing copy: Headline "Give your AI an allowance." Subhead "Set spending limits for Claude. Approve purchases by text." Small line: "Early access: purchases use test dollars."
 

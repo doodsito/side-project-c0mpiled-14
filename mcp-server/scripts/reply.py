@@ -1,4 +1,4 @@
-"""Dev stand-in for Person 3's reply webhook.
+"""Dev stand-in for the SMS person's reply webhook.
 
 uv run python scripts/reply.py y|n [phone]
 Phone defaults to DEMO_PHONE in .env.

@@ -1,5 +1,5 @@
 # Optional local Postgres for offline development, so you can run Wallie without
-# the team's Supabase credentials. Start it with:  docker compose up -d
+# The team's Supabase credentials. Start it with:  docker compose up -d
 # Then in .env:  DATABASE_URL=postgresql://postgres:wallie@localhost:5433/wallie
 services:
   db:

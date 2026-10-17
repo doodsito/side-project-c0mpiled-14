@@ -7,8 +7,13 @@
 const SUPABASE_URL = "https://ucsysxhiydfgukkkbtdx.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_kH8DQml2zIAyghryfM1uOA_CJVJFF7J";
 
-// TODO Person 4: the MCP server's public HTTPS address (ngrok static domain), no trailing slash.
-const MCP_BASE_URL = "https://YOUR-MCP-DOMAIN";
+// The MCP server's public HTTPS address, no trailing slash. Verified working end to end
+// against this Supabase project.
+//
+// NOTE: this is a quick tunnel, so it changes whenever the tunnel restarts. If connector
+// links stop working, that is the first thing to check — ask for the current URL.
+// It is replaced by a stable domain before the demo.
+const MCP_BASE_URL = "https://knowing-converter-ion-groove.trycloudflare.com";
 
 const SESSION_KEY = "eevee-session";
 
